@@ -1,0 +1,317 @@
+gavrasm Gerd's AVR assembler version 3.6 (C)2017 by DG4FAC
+----------------------------------------------------------
+Source file: challenge.asm
+Hex file:    challenge.hex
+Eeprom file: challenge.eep
+Compiled:    21.02.2017, 05:01:22
+Pass:        2
+     1: ;***********************************************************
+     2: ;*
+     3: ;*	InturruptBumpBot.asm
+     4: ;*
+     5: ;*	Bumpbot with interrupts instead of polling
+     6: ;*
+     7: ;*	This is the skeleton file for Lab 6 of ECE 375
+     8: ;*
+     9: ;***********************************************************
+    10: ;*
+    11: ;*	 Author: Danny Barnes
+    12: ;*	   Date: February 23, 2017
+    13: ;*
+    14: ;***********************************************************
+    15: 
+    16: .include "m128def.inc"			; Include definition file
+ -> Warning 009: Include defs not necessary, using internal values!
+   File: challenge.asm, Line: 16
+   Source line: .include "m128def.inc"			; Include definition file
+    17: 
+    18: ;***********************************************************
+    19: ;*	Internal Register Definitions and Constants
+    20: ;***********************************************************
+    21: .def	mpr = r16				; Multipurpose register 
+    22: .def	waitcnt = r17				; Wait Loop Counter
+    23: .def	ilcnt = r18				; Inner Loop Counter
+    24: .def	olcnt = r19				; Outer Loop Counter
+    25: .def	lasthit = r20				; Bumper last side hit
+    26: .def	hitctr = r21				; Bumper hit counter
+    27: 
+    28: .equ	WTime = 100				; Time to wait in wait loop
+    29: .equ	WTimeL = 200				; Alternate time to wait in wait loop (longer)
+    30: 
+    31: .equ	WskrR = 0				; Right Whisker Input Bit
+    32: .equ	WskrL = 1				; Left Whisker Input Bit
+    33: .equ	EngEnR = 4				; Right Engine Enable Bit
+    34: .equ	EngEnL = 7				; Left Engine Enable Bit
+    35: .equ	EngDirR = 5				; Right Engine Direction Bit
+    36: .equ	EngDirL = 6				; Left Engine Direction Bit
+    37: 
+    38: ;/////////////////////////////////////////////////////////////
+    39: ;These macros are the values to make the TekBot Move.
+    40: ;/////////////////////////////////////////////////////////////
+    41: 
+    42: .equ	MovFwd = (1<<EngDirR|1<<EngDirL)	; Move Forward Command
+    43: .equ	MovBck = $00				; Move Backward Command
+    44: .equ	TurnR = (1<<EngDirL)			; Turn Right Command
+    45: .equ	TurnL = (1<<EngDirR)			; Turn Left Command
+    46: .equ	Halt = (1<<EngEnR|1<<EngEnL)		; Halt Command
+    47: 
+    48: ;***********************************************************
+    49: ;*	Start of Code Segment
+    50: ;***********************************************************
+    51: .cseg							; Beginning of code segment
+    52: 
+    53: ;***********************************************************
+    54: ;*	Interrupt Vectors
+    55: ;***********************************************************
+    56: .org	$0000					; Beginning of IVs
+    57: 000000   C045  rjmp 	INIT			; Reset interrupt
+    58: 
+    59: 		; Set up interrupt vectors for any interrupts being used
+    60: 
+    61: .org	$0002	;Right Whisker Hit
+    62: 000002   D05A  rcall	HitRight		; Call Hit Right function
+    63: 000003   9518  reti				; Return from interrupt
+    64: 
+    65: .org	$0004	;Left Whisker Hit		; Call Hit Left function
+    66: 000004   D076  rcall HitLeft			; Return from interrupt
+    67: 000005   9518  reti
+    68: 
+    69: .org	$0046					; End of Interrupt Vectors
+    70: 
+    71: ;***********************************************************
+    72: ;*	Program Initialization
+    73: ;***********************************************************
+    74: INIT:							; The initialization routine
+    75: 		; Initialize Stack Pointer
+    76: 000046   EF0F  ldi mpr, low(RAMEND)			; Low byte init
+    77: 000047   BF0D  out SPL, mpr
+    78: 000048   E100  ldi mpr, high(RAMEND)			; High byte init
+    79: 000049   BF0E  out SPH, mpr
+    80: 		
+    81: 		; Initialize Port B for output
+    82: 00004A   EF00  ldi mpr, (1<<EngEnL)|(1<<EngEnR)|(1<<EngDirR)|(1<<EngDirL)
+    83: 00004B   BB07  out DDRB, mpr				; Output on B
+    84: 00004C   E000  ldi mpr, (0<<EngEnL)|(0<<EngEnR)|(0<<EngDirR)|(0<<EngDirL)
+    85: 00004D   BB08  out PORTB, mpr				; All outputs low initially
+    86: 		
+    87: 		; Initialize Port D for input
+    88: 00004E   E000  ldi mpr, (0<<WskrL)|(0<<WskrR)
+    89: 00004F   BB01  out DDRD, mpr				; Input on D
+    90: 000050   E003  ldi mpr, (1<<WskrL)|(1<<WskrR)
+    91: 000051   BB02  out PORTD, mpr				; Using Pull-up resistors
+    92: 
+    93: 		; Initialize external interrupts
+    94: 			; Set the Interrupt Sense Control to falling edge 
+    95: 000052   E00A  ldi mpr, (1<<ISC01)|(0<<ISC00)|(1<<ISC11)|(0<<ISC10)
+    96: 000053   9300  sts EICRA, mpr
+        000054   006A
+    97: 
+    98: 		; Configure the External Interrupt Mask
+    99: 000055   E003  ldi mpr, (1<<INT0)|(1<<INT1)
+   100: 000056   BF09  out EIMSK, mpr
+   101: 
+   102: 		;Initialize Bumper History
+   103: 000057   E040  ldi lasthit, $00
+   104: 000058   E050  ldi hitctr, $00
+   105: 
+   106: 		; Turn on interrupts
+   107: 			; NOTE: This must be the last thing to do in the INIT function
+   108: 000059   9478  sei
+   109: 
+   110: ;***********************************************************
+   111: ;*	Main Program
+   112: ;***********************************************************
+   113: MAIN:							; The Main program
+   114: 
+   115: 
+   116: 		; Move Forward	
+   117: 00005A   E600  ldi		mpr, MovFwd	; Load Move Forward command
+   118: 00005B   BB08  out		PORTB, mpr	; Send command to port
+   119: 
+   120: 00005C   CFFD  rjmp	MAIN			; Create an infinite while loop to signify the 
+   121: 								; end of the program.
+   122: 
+   123: ;***********************************************************
+   124: ;*	Functions and Subroutines
+   125: ;***********************************************************
+   126: 
+   127: ;----------------------------------------------------------------
+   128: ; Sub:	HitRight
+   129: ; Desc:	Handles functionality of the TekBot when the right whisker
+   130: ;		is triggered.
+   131: ;----------------------------------------------------------------
+   132: HitRight:
+   133: 00005D   930F  push	mpr			; Save mpr register
+   134: 00005E   931F  push	waitcnt			; Save wait register
+   135: 00005F   B70F  in		mpr, SREG	; Save program state
+   136: 000060   930F  push	mpr			;
+   137: 
+   138: 		; Clear counter if not an alternating hit
+   139: 000061   FD40  sbrc		lasthit, WskrR	; If this is second right hit in a row,
+   140: 000062   2755  clr		hitctr ; Clear the hit counter
+   141: 
+   142: 		; Increase the hit counter
+   143: 000063   9553  inc		hitctr	
+   144: 
+   145: 		; Check for stuck in corner (5 alternating hits)
+   146: 000064   3055  cpi	hitctr, 5		; Compare hit counter to 5
+   147: 000065   F411  brne	HitRightCont		; If not equal, continue to normal behavior
+   148: 000066   D032  rcall	CornerStuck		; Else, call stuck in corner function
+   149: 000067   C00A  rjmp	HitRightEnd 		; Then jump to the exit code
+   150: 
+   151: HitRightCont:	; Move Backwards for a second
+   152: 000068   E000  ldi		mpr, MovBck	; Load Move Backward command
+   153: 000069   BB08  out		PORTB, mpr	; Send command to port
+   154: 00006A   E614  ldi		waitcnt, WTime	; Wait for 1 second
+   155: 00006B   D040  rcall	Wait			; Call wait function
+   156: 
+   157: 		; Turn left for a second
+   158: 00006C   E200  ldi		mpr, TurnL	; Load Turn Left Command
+   159: 00006D   BB08  out		PORTB, mpr	; Send command to port
+   160: 00006E   E614  ldi		waitcnt, WTime	; Wait for 1 second
+   161: 00006F   FD40  sbrc		lasthit, WskrR	; Skip next instruction unless second right hit in a row
+   162: 000070   EC18  ldi 		waitcnt, WTimeL ; Wait for 2 seconds instead
+   163: 000071   D03A  rcall	Wait			; Call wait function
+   164: 
+   165: 000072   B708  in		mpr, EIFR			; Load EIFR
+   166: 000073   6003  sbr		mpr, (1<<WskrR)|(1<<WskrL)	; Clear possible queued whisker interrupt flags
+   167: 000074   BF08  out		EIFR, mpr			; Store modified values to EIFR
+   168: 
+   169: 000075   E041  ldi		lasthit, (1<<WskrR)|(0<<WskrL)	; Store hit information for later use
+   170: 
+   171: 000076   910F  pop		mpr		; Restore program state
+   172: 000077   BF0F  out		SREG, mpr	;
+   173: 000078   911F  pop		waitcnt		; Restore wait register
+   174: 000079   910F  pop		mpr		; Restore mpr
+   175: 
+   176: 00007A   9508  ret				; Return from subroutine
+   177: 
+   178: ;----------------------------------------------------------------
+   179: ; Sub:	HitLeft
+   180: ; Desc:	Handles functionality of the TekBot when the left whisker
+   181: ;		is triggered.
+   182: ;----------------------------------------------------------------
+   183: HitLeft:
+   184: 00007B   930F  push	mpr			; Save mpr register
+   185: 00007C   931F  push	waitcnt			; Save wait register
+   186: 00007D   B70F  in		mpr, SREG	; Save program state
+   187: 00007E   930F  push	mpr			;
+   188: 
+   189: 		; Clear counter if not an alternating hit
+   190: 00007F   FD41  sbrc		lasthit, WskrL	; If this is second left hit in a row,
+   191: 000080   2755  clr		hitctr ; Clear the hit counter
+   192: 
+   193: 		; Increase the hit counter
+   194: 000081   9553  inc		hitctr	
+   195: 
+   196: 		; Check for stuck in corner (5 alternating hits)
+   197: 000082   3055  cpi	hitctr, 5		; Compare hit counter to 5
+   198: 000083   F411  brne	HitLeftCont		; If not equal, continue to normal behavior
+   199: 000084   D014  rcall	CornerStuck		; Else, call stuck in corner function
+   200: 000085   C00A  rjmp	HitLeftEnd 		; Then jump to the exit code
+   201: 
+   202: HitLeftCont:	; Move Backwards for a second
+   203: 000086   E000  ldi		mpr, MovBck	; Load Move Backward command
+   204: 000087   BB08  out		PORTB, mpr	; Send command to port
+   205: 000088   E614  ldi		waitcnt, WTime	; Wait for 1 second
+   206: 000089   D022  rcall	Wait			; Call wait function
+   207: 
+   208: 		; Turn right for a second
+   209: 00008A   E400  ldi		mpr, TurnR	; Load Turn Left Command
+   210: 00008B   BB08  out		PORTB, mpr	; Send command to port
+   211: 00008C   E614  ldi		waitcnt, WTime	; Wait for 1 second
+   212: 00008D   FD41  sbrc		lasthit, WskrL	; Skip next instruction unless second right hit in a row
+   213: 00008E   EC18  ldi 		waitcnt, WTimeL ; Wait for 2 seconds instead
+   214: 00008F   D01C  rcall	Wait			; Call wait function
+   215: 	
+   216: 000090   B708  in		mpr, EIFR			; Load EIFR
+   217: 000091   6003  sbr		mpr, (1<<WskrR)|(1<<WskrL)	; Clear possible queued whisker interrupt flags
+   218: 000092   BF08  out		EIFR, mpr			; Store modified values to EIFR
+   219: 
+   220: 000093   E042  ldi		lasthit, (0<<WskrR)|(1<<WskrL)	; Store hit information for later use
+   221: 
+   222: 000094   910F  pop		mpr		; Restore program state
+   223: 000095   BF0F  out		SREG, mpr	;
+   224: 000096   911F  pop		waitcnt		; Restore wait register
+   225: 000097   910F  pop		mpr		; Restore mpr
+   226: 
+   227: 000098   9508  ret				; Return from subroutine
+   228: 
+   229: ;----------------------------------------------------------------
+   230: ; Sub:	CornerStuck
+   231: ; Desc:	Handles functionality of the TekBot when stuck in a corner
+   232: ;----------------------------------------------------------------
+   233: CornerStuck:
+   234: 000099   930F  push	mpr			; Save mpr register
+   235: 00009A   931F  push	waitcnt			; Save wait register
+   236: 00009B   B70F  in		mpr, SREG	; Save program state
+   237: 00009C   930F  push	mpr			;
+   238: 
+   239: 		; Move Backwards for a second
+   240: 00009D   E000  ldi		mpr, MovBck	; Load Move Backward command
+   241: 00009E   BB08  out		PORTB, mpr	; Send command to port
+   242: 00009F   E614  ldi		waitcnt, WTime	; Wait for 1 second
+   243: 0000A0   D00B  rcall	Wait			; Call wait function
+   244: 
+   245: 		; Turn left for a few seconds (lets say 4) to turn around
+   246: 0000A1   E200  ldi		mpr, TurnL	; Load Turn Left Command
+   247: 0000A2   BB08  out		PORTB, mpr	; Send command to port
+   248: 0000A3   EC18  ldi		waitcnt, WTimeL	; Wait for 2 second
+   249: 0000A4   D007  rcall	Wait			; Call wait function
+   250: 0000A5   D006  rcall	Wait			; Call wait function
+   251: 
+   252: 0000A6   2755  clr		hitctr		; Reset the hit counter back to 0	
+   253: 
+   254: 0000A7   910F  pop		mpr		; Restore program state
+   255: 0000A8   BF0F  out		SREG, mpr	;
+   256: 0000A9   911F  pop		waitcnt		; Restore wait register
+   257: 0000AA   910F  pop		mpr		; Restore mpr
+   258: 0000AB   9508  ret				; Return from subroutine
+   259: 
+   260: ;----------------------------------------------------------------
+   261: ; Sub:	Wait
+   262: ; Desc:	A wait loop that is 16 + 159975*waitcnt cycles or roughly 
+   263: ;		waitcnt*10ms.  Just initialize wait for the specific amount 
+   264: ;		of time in 10ms intervals. Here is the general eqaution
+   265: ;		for the number of clock cycles in the wait loop:
+   266: ;			((3 * ilcnt + 3) * olcnt + 3) * waitcnt + 13 + call
+   267: ;----------------------------------------------------------------
+   268: Wait:
+   269: 0000AC   931F  push	waitcnt			; Save wait register
+   270: 0000AD   932F  push	ilcnt			; Save ilcnt register
+   271: 0000AE   933F  push	olcnt			; Save olcnt register
+   272: 
+   273: 0000AF   EE30  ldi		olcnt, 224		; load olcnt register
+   274: 0000B0   EE2D  ldi		ilcnt, 237		; load ilcnt register
+   275: 0000B1   952A  dec		ilcnt			; decrement ilcnt
+   276: 0000B2   F7F1  brne	ILoop			; Continue Inner Loop
+   277: 0000B3   953A  dec		olcnt		; decrement olcnt
+   278: 0000B4   F7D9  brne	OLoop			; Continue Outer Loop
+   279: 0000B5   951A  dec		waitcnt		; Decrement wait 
+   280: 0000B6   F7C1  brne	Loop			; Continue Wait loop	
+   281: 
+   282: 0000B7   913F  pop		olcnt		; Restore olcnt register
+   283: 0000B8   912F  pop		ilcnt		; Restore ilcnt register
+   284: 0000B9   911F  pop		waitcnt		; Restore wait register
+   285: 0000BA   9508  ret				; Return from subroutine
+   286: 
+   287: ;***********************************************************
+   288: ;*	Stored Program Data
+   289: ;***********************************************************
+   290: 
+   291: ; Enter any stored data you might need here
+   292: 
+   293: ;***********************************************************
+   294: ;*	Additional Program Includes
+   295: ;***********************************************************
+   296: ; There are no additional file includes for this program
+   297: 
+ -> Warning 001: 1 symbol(s) defined, but not used!
+
+Program             :      122 words.
+Constants           :        0 words.
+Total program memory:      122 words.
+Eeprom space        :        0 bytes.
+Data segment        :        0 bytes.
+Compilation completed, no errors.
+Compilation endet 21.02.2017, 05:01:22
