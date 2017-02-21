@@ -1,0 +1,691 @@
+gavrasm Gerd's AVR assembler version 3.6 (C)2017 by DG4FAC
+----------------------------------------------------------
+Source file: main.asm
+Hex file:    main.hex
+Eeprom file: main.eep
+Compiled:    02.02.2017, 11:53:29
+Pass:        2
+     1: ;***********************************************************
+     2: ;*
+     3: ;*	HelloWorld.asm
+     4: ;*
+     5: ;*	Displays Your Name and 
+     6: ;*
+     7: ;*	This is the skeleton file for Lab 4 of ECE 375
+     8: ;*
+     9: ;***********************************************************
+    10: ;*
+    11: ;*	 Author: Danny Barnes and Aravind Parasurama
+    12: ;*	   Date: Oct. 19, 2016
+    13: ;*
+    14: ;***********************************************************
+    15: 
+    16: .include "m128def.inc"			; Include definition file
+ -> Warning 009: Include defs not necessary, using internal values!
+   File: main.asm, Line: 16
+   Source line: .include "m128def.inc"			; Include definition file
+    17: 
+    18: ;***********************************************************
+    19: ;*	Internal Register Definitions and Constants
+    20: ;***********************************************************
+    21: .def	mpr = r16				; Multipurpose register is
+    22: 								; required for LCD Driver
+    23: .def	counter = r23			; Counter for loop
+    24: 
+    25: ;***********************************************************
+    26: ;*	Start of Code Segment
+    27: ;***********************************************************
+    28: .cseg							; Beginning of code segment
+    29: 
+    30: ;***********************************************************
+    31: ;*	Interrupt Vectors
+    32: ;***********************************************************
+    33: .org	$0000					; Beginning of IVs
+    34: 000000   C045  rjmp INIT				; Reset interrupt
+    35: 
+    36: .org	$0046					; End of Interrupt Vectors
+    37: 
+    38: ;***********************************************************
+    39: ;*	Program Initialization
+    40: ;***********************************************************
+    41: INIT:							; The initialization routine
+    42: 		; Initialize Stack Pointer
+    43: 000046   EF0F  ldi mpr, low(RAMEND)
+    44: 000047   BF0D  out SPL, mpr
+    45: 000048   E100  ldi mpr, high(RAMEND)
+    46: 000049   BF0E  out SPH, mpr
+    47: 		
+    48: 		; Initialize LCD Display
+    49: 00004A   D01B  rcall LCDInit
+    50: 		
+    51: 		; Move strings from Program Memory to Data Memory
+    52: 00004B   EAEC  ldi ZL, low(STRING_BEG<<1)
+    53: 00004C   E0F0  ldi ZH, high(STRING_BEG<<1)
+    54: 00004D   E0C0  ldi YL, low(SRAM_START)
+    55: 00004E   E0D1  ldi YH, high(SRAM_START)
+    56: 00004F   E270  ldi counter, 32
+    57: 
+    58: 
+    59: 000050   9105  LPM mpr, Z+
+    60: 000051   9309  ST Y+, mpr
+    61: 000052   957A  dec counter
+    62: 000053   F7E1  brne LOOP
+    63: 
+    64: 
+    65: 		; NOTE that there is no RET or RJMP from INIT, this
+    66: 		; is because the next instruction executed is the
+    67: 		; first instruction of the main program
+    68: 
+    69: ;***********************************************************
+    70: ;*	Main Program
+    71: ;***********************************************************
+    72: MAIN:							; The Main program
+    73: 		; Display the strings on the LCD Display
+    74: 000054   D050  rcall	LCDWrite
+    75: 
+    76: 
+    77: 000055   CFFE  rjmp	MAIN			; jump back to main and create an infinite
+    78: 								; while loop.  Generally, every main program is an
+    79: 								; infinite while loop, never let the main program
+    80: 								; just run off
+    81: 
+    82: ;***********************************************************
+    83: ;*	Stored Program Data
+    84: ;***********************************************************
+    85: 
+    86: ;-----------------------------------------------------------
+    87: ; An example of storing a string. Note the labels before and
+    88: ; after the .DB directive; these can help to access the data
+    89: ;-----------------------------------------------------------
+    90: STRING_BEG:
+    91: .DB		"Danny Barnes    Hello World!    "		; Declaring data in ProgMem
+        000056 6144 6E6E 2079 6142
+        00005A 6E72 7365 2020 2020
+        00005E 6548 6C6C 206F 6F57
+        000062 6C72 2164 2020 2020
+    92: STRING_END:
+    93: 
+    94: ;***********************************************************
+    95: ;*	Additional Program Includes
+    96: ;***********************************************************
+    97: .include "LCDDriver.asm"		; Include the LCD Driver
+  Including file LCDDriver.asm
+     1: ;***********************************************************
+     2: ;*
+     3: ;*	LCDDriver.asm	-	V2.0
+     4: ;*
+     5: ;*	Contains the neccessary functions to display text to a
+     6: ;*	2 x 16 character LCD Display.  Additional functions
+     7: ;*	include a conversion routine from an unsigned 8-bit
+     8: ;*	binary number to and ASCII text string.
+     9: ;*
+    10: ;*	Version 2.0 - Added support for accessing the LCD 
+    11: ;*		Display via the serial port. See version 1.0 for 
+    12: ;*		accessing a memory mapped LCD display.
+    13: ;*
+    14: ;***********************************************************
+    15: ;*
+    16: ;*	 Author: David Zier
+    17: ;*	   Date: March 17, 2003
+    18: ;*	Company: TekBots(TM), Oregon State University - EECS
+    19: ;*	Version: 2.0
+    20: ;*
+    21: ;***********************************************************
+    22: ;*	Rev	Date	Name		Description
+    23: ;*----------------------------------------------------------
+    24: ;*	-	8/20/02	Zier		Initial Creation of Version 1.0
+    25: ;*	A	3/7/03	Zier		V2.0 - Updated for USART LCD
+    26: ;*
+    27: ;*
+    28: ;***********************************************************
+    29: 
+    30: ;***********************************************************
+    31: ;*	Internal Register Definitions and Constants
+    32: ;*		NOTE: A register MUST be named 'mpr' in the Main Code
+    33: ;*			It is recomended to use register r16.
+    34: ;*		WARNING: Register r17-r22 are reserved and cannot be
+    35: ;*			renamed outside of the LCD Driver functions. Doing
+    36: ;*			so will damage the functionality of the LCD Driver
+    37: ;***********************************************************
+    38: .def	wait = r17				; Wait Loop Register
+    39: .def	count = r18				; Character Counter
+    40: .def	line = r19				; Line Select Register
+    41: .def	type = r20				; LCD data type: Command or Text
+    42: .def	q = r21					; Quotient for div10
+    43: .def	r = r22					; Remander for div10
+    44: 
+    45: .equ	LCDLine1 = $80			; LCD Line 1 select command
+    46: .equ	LCDLine2 = $c0			; LCD Line 2 select command
+    47: .equ	LCDClear = $01			; LCD Clear Command
+    48: .equ	LCDHome = $02			; LCD Set Cursor Home Command
+    49: .equ	LCDPulse = $08			; LCD Pulse signal, used to simulate 
+    50: 								; write signal
+    51: 
+    52: .equ	LCDCmd = $00			; Constant used to write a command 
+    53: .equ	LCDTxt = $01			; Constant used to write a text character
+    54: 
+    55: .equ	LCDMaxCnt = 16			; Maximum number of characters per line
+    56: .equ	LCDLn1Addr = $0100		; Beginning address for Line 1 data
+    57: .equ	LCDLn2Addr = $0110		; Beginning address for Line 2 data
+    58: 
+    59: ;-----------------------------------------------------------
+    60: ;***********************************************************
+    61: ;*	Public LCD Driver Suboutines and Functions
+    62: ;*		These functions and subroutines can be called safely 
+    63: ;*		from within any program
+    64: ;***********************************************************
+    65: ;-----------------------------------------------------------
+    66: 
+    67: 
+    68: ;*******************************************************
+    69: ;* SubRt: 	LCDInit
+    70: ;* Desc: 	Initialize the Serial Port and the Hitachi 
+    71: ;*			Display 8 Bit inc DD-RAM 
+    72: ;*			Pointer with no features
+    73: ;*			- 2 LInes with 16 characters
+    74: ;*******************************************************
+    75: LCDInit:
+    76: 000066   930F  push	mpr				; Save the state of machine
+    77: 000067   B70F  in		mpr, SREG		; Save the SREG
+    78: 000068   930F  push	mpr				;
+    79: 000069   931F  push	wait			; Save wait
+    80: 
+    81: 		; Setup the Communication Ports
+    82: 		; Port B: Output
+    83: 		; Port D: Input w/ internal pullup resistors
+    84: 		; Port F: Output on Pin 3
+    85: 00006A   E000  ldi		mpr, $00		; Initialize Port B for outputs
+    86: 00006B   BB08  out		PORTB, mpr		; Port B outputs high
+    87: 00006C   EF0F  ldi		mpr, $ff		; except for any overrides
+    88: 00006D   BB07  out		DDRB, mpr		;
+    89: 00006E   E000  ldi		mpr, $00		; Initialize Port D for inputs
+    90: 00006F   BB02  out		PORTD, mpr		; with Tri-State
+    91: 000070   E000  ldi		mpr, $00		; except for any overrides
+    92: 000071   BB01  out		DDRD, mpr		;
+    93: 000072   E000  ldi		mpr, $00		; Initialize Port F Pin 3 to
+    94: 000073   9300  sts		PORTF, mpr		; output inorder to twiddle the
+        000074   0062
+    95: 000075   E008  ldi		mpr, (1<<DDF3)	; LCD interface
+    96: 000076   9300  sts		DDRF, mpr		; Must NOT override this port
+        000077   0061
+    97: 
+    98: 		; Setup the Serial Functionality
+    99: 		; SPI Type: Master
+   100: 		; SPI Clock Rate: 2*1000.000 kHz
+   101: 		; SPI Clock Phase: Cycle Half
+   102: 		; SPI Clock Polarity: Low
+   103: 		; SPI Data Order: MSB First
+   104: 000078   E500  ldi		mpr, (1<<SPE|1<<MSTR)
+   105: 000079   B90D  out		SPCR, mpr		; Set Serial Port Control Register
+   106: 00007A   E001  ldi		mpr, (1<<SPI2X)
+   107: 00007B   B90E  out		SPSR, mpr		; Set Serial Port Status Register
+   108: 
+   109: 		; Setup External SRAM configuration
+   110: 		; $0460 - $7FFF / $8000 - $FFFF
+   111: 		; Lower page wait state(s): None
+   112: 		; Uppoer page wait state(s): 2r/w
+   113: 00007C   E800  ldi		mpr, (1<<SRE)	; 
+   114: 00007D   BF05  out		MCUCR, mpr		; Initialize MCUCR
+   115: 00007E   E402  ldi		mpr, (1<<SRL2|1<<SRW11)
+   116: 00007F   9300  sts		XMCRA, mpr		; Initialize XMCRA
+        000080   006D
+   117: 000081   E800  ldi		mpr, (1<<XMBK)	;
+   118: 000082   9300  sts		XMCRB, mpr		; Initialize XMCRB
+        000083   006C
+   119: 		
+   120: 		; Initialize USART0
+   121: 		; Communication Parameter: 8 bit, 1 stop, No Parity
+   122: 		; USART0 Rx: On
+   123: 		; USART0 Tx: On
+   124: 		; USART0 Mode: Asynchronous
+   125: 		; USART0 Baudrate: 9600
+   126: 000084   E000  ldi		mpr, $00		;
+   127: 000085   B90B  out		UCSR0A, mpr		; Init UCSR0A
+   128: 000086   E108  ldi		mpr, (1<<RXEN0|1<<TXEN0)
+   129: 000087   B90A  out		UCSR0B, mpr		; Init UCSR0B
+   130: 000088   E006  ldi		mpr, (1<<UCSZ01|1<<UCSZ00)
+   131: 000089   9300  sts		UCSR0C, mpr		; Init UCSR0C
+        00008A   0095
+   132: 00008B   E000  ldi		mpr, $00		;
+   133: 00008C   9300  sts		UBRR0H, mpr		; Init UBRR0H
+        00008D   0090
+   134: 00008E   E607  ldi		mpr, $67		;
+   135: 00008F   B909  out		UBRR0L, mpr		; Init UBRR0L
+   136: 
+   137: 		; Initialize the LCD Display
+   138: 000090   E006  ldi		mpr, 6			;
+   139: LCDINIT_L1:
+   140: 000091   EF1A  ldi		wait, 250		; 15ms of Display
+   141: 000092   D0BF  rcall	LCDWait			; Bootup wait
+   142: 000093   950A  dec		mpr				;
+   143: 000094   F7E1  brne	LCDINIT_L1		;
+   144: 
+   145: 000095   E308  ldi		mpr, $38		; Display Mode set
+   146: 000096   D097  rcall 	LCDWriteCmd		; 
+   147: 000097   E008  ldi		mpr, $08		; Display Off
+   148: 000098   D095  rcall	LCDWriteCmd		;
+   149: 000099   E001  ldi		mpr, $01		; Display Clear
+   150: 00009A   D093  rcall	LCDWriteCmd		;
+   151: 00009B   E006  ldi		mpr, $06		; Entry mode set
+   152: 00009C   D091  rcall	LCDWriteCmd		;
+   153: 00009D   E00C  ldi		mpr, $0c		; Display on
+   154: 00009E   D08F  rcall	LCDWriteCmd		;
+   155: 00009F   D028  rcall	LCDClr			; Clear display
+   156: 
+   157: 0000A0   911F  pop		wait			; Restore wait
+   158: 0000A1   910F  pop		mpr				; Restore SREG
+   159: 0000A2   BF0F  out		SREG, mpr		;
+   160: 0000A3   910F  pop		mpr				; Restore mpr
+   161: 0000A4   9508  ret						; Return from subroutine
+   162: 
+   163: ;*******************************************************
+   164: ;* Func:	LCDWrite
+   165: ;* Desc:	Generic Write Function that writes both lines
+   166: ;*			of text out to the LCD
+   167: ;*			- Line 1 data is in address space $0100-$010F
+   168: ;*			- Line 2 data is in address space $0110-$010F
+   169: ;*******************************************************
+   170: LCDWrite:
+   171: 0000A5   D002  rcall LCDWrLn1			; Write Line 1
+   172: 0000A6   D011  rcall LCDWrLn2			; Write Line 2
+   173: 0000A7   9508  ret 					; Return from function
+   174: 
+   175: ;*******************************************************
+   176: ;* Func:	LCDWrLn1
+   177: ;* Desc:	This function will write the first line of 
+   178: ;*			data to the first line of the LCD Display
+   179: ;*******************************************************
+   180: LCDWrLn1:
+   181: 0000A8   930F  push 	mpr				; Save mpr
+   182: 0000A9   93EF  push	ZL				; Save Z pointer
+   183: 0000AA   93FF  push	ZH				;
+   184: 0000AB   932F  push	count			; Save the count register
+   185: 0000AC   933F  push	line			; Save the line register
+   186: 								
+   187: 0000AD   E0E0  ldi		ZL, low(LCDLn1Addr)
+   188: 0000AE   E0F1  ldi		ZH, high(LCDLn1Addr)		 
+   189: 0000AF   E830  ldi		line, LCDLine1	; Set LCD line to Line 1
+   190: 0000B0   D06B  rcall	LCDSetLine		; Restart at the beginning of line 1
+   191: 0000B1   D076  rcall	LCDWriteLine	; Write the line of text
+   192: 
+   193: 0000B2   913F  pop		line
+   194: 0000B3   912F  pop		count			; Restore the counter
+   195: 0000B4   91FF  pop		ZH				; Restore Z pointer
+   196: 0000B5   91EF  pop		ZL				;
+   197: 0000B6   910F  pop 	mpr				; Restore mpr
+   198: 0000B7   9508  ret						; Return from function
+   199: 
+   200: ;*******************************************************
+   201: ;* Func:	LCDWrLn2
+   202: ;* Desc:	This function will write the second line of 
+   203: ;*			data to the second line of the LCD Display
+   204: ;*******************************************************
+   205: LCDWrLn2:
+   206: 0000B8   930F  push 	mpr				; Save mpr
+   207: 0000B9   93EF  push	ZL				; Save Z pointer
+   208: 0000BA   93FF  push	ZH				;
+   209: 0000BB   932F  push	count			; Save the count register
+   210: 0000BC   933F  push	line			; Save the line register
+   211: 								
+   212: 0000BD   E1E0  ldi		ZL, low(LCDLn2Addr)
+   213: 0000BE   E0F1  ldi		ZH, high(LCDLn2Addr)		 
+   214: 0000BF   EC30  ldi		line, LCDLine2	; Set LCD line to Line 2
+   215: 0000C0   D05B  rcall	LCDSetLine		; Restart at the beginning of line 2
+   216: 0000C1   D066  rcall	LCDWriteLine	; Write the line of text
+   217: 
+   218: 0000C2   913F  pop		line
+   219: 0000C3   912F  pop		count			; Restore the counter
+   220: 0000C4   91FF  pop		ZH				; Restore Z pointer
+   221: 0000C5   91EF  pop		ZL				;
+   222: 0000C6   910F  pop 	mpr				; Restore mpr
+   223: 0000C7   9508  ret						; Return from function
+   224: 
+   225: ;*******************************************************
+   226: ;* Func:	LCDClr
+   227: ;* Desc:	Generic Clear Subroutine that clears both 
+   228: ;*			lines of the LCD and Data Memory storage area
+   229: ;*******************************************************
+   230: LCDClr:
+   231: 0000C8   D002  rcall	LCDClrLn1		; Clear Line 1
+   232: 0000C9   D011  rcall	LCDClrLn2		; Clear Line 2
+   233: 0000CA   9508  ret						; Return from Subroutine
+   234: 
+   235: ;*******************************************************
+   236: ;* Func:	LCDClrLn1
+   237: ;* Desc:	This subroutine will clear the first line of 
+   238: ;*			the data and the first line of the LCD Display
+   239: ;*******************************************************
+   240: LCDClrLn1:
+   241: 0000CB   930F  push	mpr				; Save mpr
+   242: 0000CC   933F  push	line			; Save line register
+   243: 0000CD   932F  push	count			; Save the count register
+   244: 0000CE   93EF  push	ZL				; Save Z pointer
+   245: 0000CF   93FF  push	ZH				;
+   246: 	
+   247: 0000D0   E830  ldi		line, LCDline1	; Set Access to Line 1 of LCD
+   248: 0000D1   D04A  rcall	LCDSetLine		; Set Z pointer to address of line 1 data
+   249: 0000D2   E0E0  ldi		ZL, low(LCDLn1Addr)
+   250: 0000D3   E0F1  ldi		ZH, high(LCDLn1Addr)
+   251: 0000D4   D04C  rcall	LCDClrLine		; Call the Clear Line function
+   252: 
+   253: 0000D5   91FF  pop		ZH				; Restore Z pointer
+   254: 0000D6   91EF  pop		ZL				;
+   255: 0000D7   912F  pop		count			; Restore the count register
+   256: 0000D8   913F  pop		line			; Restore line register
+   257: 0000D9   910F  pop		mpr				; Restore mpr
+   258: 0000DA   9508  ret						; Return from Subroutine
+   259: 
+   260: ;*******************************************************
+   261: ;* Func:	LCDClrLn2
+   262: ;* Desc:	This subroutine will clear the second line of 
+   263: ;*			the data and the second line of the LCD Display
+   264: ;*******************************************************
+   265: LCDClrLn2:
+   266: 0000DB   930F  push	mpr				; Save mpr
+   267: 0000DC   933F  push	line			; Save line register
+   268: 0000DD   932F  push	count			; Save the count register
+   269: 0000DE   93EF  push	ZL				; Save Z pointer
+   270: 0000DF   93FF  push	ZH				;
+   271: 	
+   272: 0000E0   EC30  ldi		line, LCDline2	; Set Access to Line 2 of LCD
+   273: 0000E1   D03A  rcall	LCDSetLine		; Set Z pointer to address of line 2 data
+   274: 0000E2   E1E0  ldi		ZL, low(LCDLn2Addr)
+   275: 0000E3   E0F1  ldi		ZH, high(LCDLn2Addr)
+   276: 0000E4   D03C  rcall	LCDClrLine		; Call the Clear Line function
+   277: 
+   278: 0000E5   91FF  pop		ZH				; Restore Z pointer
+   279: 0000E6   91EF  pop		ZL				;
+   280: 0000E7   912F  pop		count			; Restore the count register
+   281: 0000E8   913F  pop		line			; Restore line register
+   282: 0000E9   910F  pop		mpr				; Restore mpr
+   283: 0000EA   9508  ret						; Return from Subroutine
+   284: 
+   285: ;*******************************************************
+   286: ;* Func:	LCDWriteByte
+   287: ;* Desc:	This is a complex and low level function that
+   288: ;*			allows any program to write any ASCII character
+   289: ;*			(Byte) anywhere in the LCD Display.  There
+   290: ;*			are several things that need to be initialized
+   291: ;*			before this function is called:
+   292: ;*		count - Holds the index value of the line to where
+   293: ;*				the char is written, 0-15(39).  i.e. if 
+   294: ;*				count has the value of 3, then the char is
+   295: ;*				going to be written to the third element of
+   296: ;*				the line.
+   297: ;*		line  - Holds the line number that the char is going
+   298: ;*				to be written to, (1 or 2).
+   299: ;*		mpr	  - Contains the value of the ASCII character to 
+   300: ;*				be written (0-255)
+   301: ;*********************************************************
+   302: LCDWriteByte:
+   303: 0000EB   930F  push	mpr				; Save the mpr
+   304: 0000EC   933F  push	line			; Save the line
+   305: 0000ED   932F  push	count			; Save the count
+   306: 								; Preform sanity checks on count and line
+   307: 0000EE   3228  cpi		count, 40		; Make sure count is within range
+   308: 0000EF   F450  brsh	LCDWriteByte_3	; Do nothing and exit function
+   309: 0000F0   3031  cpi		line, 1			; If (line == 1)
+   310: 0000F1   F411  brne	LCDWriteByte_1	; 
+   311: 0000F2   E830  ldi		line, LCDLine1	; Load line 1 base LCD Address
+   312: 0000F3   C003  rjmp	LCDWriteByte_2	; Continue on with function
+   313: LCDWriteByte_1:					
+   314: 0000F4   3032  cpi		line, 2			; If (line == 2)
+   315: 0000F5   F421  brne	LCDWriteByte_3	; Do nothing and exit function
+   316: 0000F6   EC30  ldi		line, LCDLine2	; Load line 2 base LCD Address
+   317: 
+   318: LCDWriteByte_2:					; Write char to LCD
+   319: 0000F7   0F32  add		line, count		; Set the correct LCD address
+   320: 0000F8   D023  rcall	LCDSetLine		; Set the line address to LCD
+   321: 0000F9   D042  rcall	LCDWriteChar	; Write Char to LCD Display		
+   322: 		
+   323: LCDWriteByte_3:					; Exit Function
+   324: 0000FA   912F  pop		count			; Restore the count
+   325: 0000FB   913F  pop		line			; Restore the line
+   326: 0000FC   910F  pop		mpr				; Restore the mpr
+   327: 0000FD   9508  ret						; Return from function
+   328: 		 
+   329: ;*******************************************************
+   330: ;* Func:	Bin2ASCII
+   331: ;* Desc:	Converts a binary number into an ASCII 
+   332: ;*			text string equivalent. 
+   333: ;*			- The binary number needs to be in the mpr
+   334: ;*			- The Start Address of where the text will
+   335: ;*			 	be placed needs to be in the X Register
+   336: ;*			- The count of the characters created are 
+   337: ;*				added to the count register
+   338: ;*******************************************************
+   339: Bin2ASCII:
+   340: 0000FE   930F  push	mpr				; save mpr
+   341: 0000FF   936F  push	r				; save r
+   342: 000100   935F  push	q				; save q
+   343: 000101   93BF  push	XH				; save X-pointer
+   344: 000102   93AF  push	XL				;
+   345: 
+   346: 		; Determine the range of mpr
+   347: 000103   3604  cpi		mpr, 100		; is mpr >= 100
+   348: 000104   F018  brlo	B2A_1			; goto next check
+   349: 000105   E023  ldi		count, 3		; Three chars are written
+   350: 000106   9613  adiw	XL, 3			; Increment X 3 address spaces
+   351: 000107   C007  rjmp	B2A_3			; Continue with program
+   352: 000108   300A  cpi		mpr, 10			; is mpr >= 10
+   353: 000109   F018  brlo	B2A_2			; Continue with program
+   354: 00010A   E022  ldi		count, 2		; Two chars are written
+   355: 00010B   9612  adiw	XL, 2			; Increment X 2 address spaces
+   356: 00010C   C002  rjmp	B2A_3			; Continue with program
+   357: 00010D   9611  adiw	XL, 1			; Increment X 1 address space
+   358: 00010E   E021  ldi		count, 1 		; One char is written
+   359: 
+   360: B2A_3:	;Do-While statement that converts Binary to ASCII
+   361: 00010F   D04A  rcall	div10			; Call the div10 function
+   362: 000110   E300  ldi		mpr, '0'		; Set the base ASCII integer value
+   363: 000111   0F06  add		mpr, r			; Create the ASCII integer value
+   364: 000112   930E  st		-X, mpr			; Load ASCII value to memory
+   365: 000113   2F05  mov		mpr, q			; Set mpr to quotiant value
+   366: 000114   3000  cpi		mpr, 0			; does mpr == 0
+   367: 000115   F7C9  brne	B2A_3			; do while (mpr != 0)
+   368: 
+   369: 000116   91AF  pop		XL				; restore X-pointer
+   370: 000117   91BF  pop		XH				;
+   371: 000118   915F  pop 	q				; restore q
+   372: 000119   916F  pop		r				; restore r
+   373: 00011A   910F  pop		mpr				; restore mpr
+   374: 00011B   9508  ret						; return from function
+   375: 
+   376: ;-------------------------------------------------------
+   377: ;*******************************************************
+   378: ;* Private LCD Driver Functions and Subroutines
+   379: ;*	NOTE: It is not recommended to call these functions
+   380: ;*	      or subroutines, only call the Public ones.
+   381: ;*******************************************************
+   382: ;-------------------------------------------------------
+   383: 
+   384: ;*******************************************************
+   385: ;* Func:	LCDSetLine
+   386: ;* Desc:	Change line to be written to 
+   387: ;*******************************************************
+   388: LCDSetLine:
+   389: 00011C   930F  push	mpr				; Save mpr
+   390: 00011D   2F03  mov		mpr,line		; Copy Command Data to mpr
+   391: 00011E   D00F  rcall	LCDWriteCmd		; Write the Command
+   392: 00011F   910F  pop		mpr				; Restore the mpr
+   393: 000120   9508  ret						; Return from function
+   394: 
+   395: ;*******************************************************
+   396: ;* Func:	LCDClrLine
+   397: ;* Desc:	Manually clears a single line within an LCD
+   398: ;*			Display and Data Memory by writing 16 
+   399: ;*			consecutive ASCII spaces $20 to both the LCD 
+   400: ;*			and the memory.  The line to be cleared must
+   401: ;*			first be set in the LCD and the Z pointer is
+   402: ;*			pointing the first element in Data Memory
+   403: ;*******************************************************
+   404: LCDClrLine:
+   405: 000121   E200  ldi		mpr, ' '		; The space char to be written
+   406: 000122   E120  ldi		count, LCDMaxCnt; The character count
+   407: LCDClrLine_1:
+   408: 000123   9301  st		Z+, mpr			; Clear data memory element
+   409: 000124   D017  rcall	LCDWriteChar	; Clear LCD memory element
+   410: 000125   952A  dec		count			; Decrement the count
+   411: 000126   F7E1  brne	LCDClrLine_1	; Continue untill all elements are cleared
+   412: 000127   9508  ret						; Return from function
+   413: 
+   414: ;*******************************************************
+   415: ;* Func:	LCDWriteLine
+   416: ;* Desc:	Writes a line of text to the LCD Display.
+   417: ;*			This routine takes a data element pointed to
+   418: ;*			by the Z-pointer and copies it to the LCD 
+   419: ;*			Display for the duration of the line.  The
+   420: ;*			line the Z-pointer must be set prior to the 
+   421: ;*			function call.
+   422: ;*******************************************************
+   423: LCDWriteLine:
+   424: 000128   E120  ldi		count, LCDMaxCnt; The character count
+   425: LCDWriteLine_1:
+   426: 000129   9101  ld		mpr, Z+			; Get the data element
+   427: 00012A   D011  rcall	LCDWriteChar	; Write element to LCD Display
+   428: 00012B   952A  dec		count			; Decrement the count
+   429: 00012C   F7E1  brne	LCDWriteLine_1	; Continue untill all elements are written
+   430: 00012D   9508  ret						; Return from function
+   431: 
+   432: ;*******************************************************
+   433: ;* Func:	LCDWriteCmd
+   434: ;* Desc:	Write command that is in the mpr to LCD 
+   435: ;*******************************************************
+   436: LCDWriteCmd:
+   437: 00012E   934F  push	type			; Save type register
+   438: 00012F   931F  push	wait			; Save wait register
+   439: 000130   E040  ldi		type, LCDCmd	; Set type to Command data
+   440: 000131   D013  rcall	LCDWriteData	; Write data to LCD
+   441: 000132   930F  push	mpr				; Save mpr register
+   442: 000133   E002  ldi		mpr, 2			; Wait approx. 4.1 ms
+   443: LCDWC_L1:
+   444: 000134   EC1D  ldi		wait, 205		; Wait 2050 us
+   445: 000135   D01C  rcall	LCDWait			;
+   446: 000136   950A  dec		mpr				; The wait loop cont.
+   447: 000137   F7E1  brne	LCDWC_L1		;
+   448: 000138   910F  pop		mpr				; Restore mpr
+   449: 000139   911F  pop		wait			; Restore wait register
+   450: 00013A   914F  pop		type			; Restore type register
+   451: 00013B   9508  ret						; Return from function
+   452: 
+   453: ;*******************************************************
+   454: ;* Func:	LCDWriteChar
+   455: ;* Desc:	Write character data that is in the mpr
+   456: ;*******************************************************
+   457: LCDWriteChar:
+   458: 00013C   934F  push	type			; Save type register
+   459: 00013D   931F  push	wait			; Save the wait register
+   460: 00013E   E041  ldi		type, LCDTxt	; Set type to Text data
+   461: 00013F   D005  rcall	LCDWriteData	; Write data to LCD
+   462: 000140   E110  ldi		wait, 16		; Delay 160 us
+   463: 000141   D010  rcall	LCDWait			;
+   464: 000142   911F  pop		wait			; Restore wait register
+   465: 000143   914F  pop		type			; Restore type register
+   466: 000144   9508  ret						; Return from function
+   467: 
+   468: ;*******************************************************
+   469: ;* Func:	LCDWriteData
+   470: ;* Desc:	Write data or command to LCD 
+   471: ;*******************************************************
+   472: LCDWriteData:
+   473: 000145   B94F  out		SPDR, type		; Send type to SP
+   474: 000146   E012  ldi		wait, 2			; Wait 2 us
+   475: 000147   D00A  rcall	LCDWait			; Call Wait function
+   476: 000148   B90F  out		SPDR,mpr		; Send data to serial port
+   477: 000149   E012  ldi		wait, 2			; Wait 2 us
+   478: 00014A   D007  rcall	LCDWait			; Call Wait function
+   479: 00014B   E018  ldi		wait, LCDPulse	; Use wait temporarially to 
+   480: 00014C   9310  sts		PORTF, wait		; to send write pulse to LCD
+        00014D   0062
+   481: 00014E   E010  ldi		wait, $00		;
+   482: 00014F   9310  sts		PORTF, wait		;
+        000150   0062
+   483: 000151   9508  ret						; Return from function
+   484: 
+   485: ;*******************************************************
+   486: ;* Func:	LCDWait
+   487: ;* Desc:	A wait loop that is 10 + 159*wait cycles or
+   488: ;*			roughly wait*10us.  Just initialize wait
+   489: ;*			for the specific amount of time in 10us 
+   490: ;*			intervals.
+   491: ;*******************************************************
+   492: 000152   930F  push	mpr				; Save mpr
+   493: 000153   E409  ldi		mpr, $49		; Load with a 10us value
+   494: 000154   950A  dec		mpr				; Inner Wait Loop
+   495: 000155   F7F1  brne	LCDW_L2
+   496: 000156   951A  dec		wait			; Outer Wait Loop
+   497: 000157   F7D9  brne	LCDW_L1
+   498: 000158   910F  pop		mpr				; Restore mpr
+   499: 000159   9508  ret						; Return from Wait Function
+   500: 
+   501: ;*******************************************************
+   502: ;*	Bin2ASCII routines that can be used as a psuedo-
+   503: ;*			printf function to convert an 8-bit binary
+   504: ;*			number into the unigned decimal ASCII text
+   505: ;*******************************************************
+   506: 
+   507: ;***********************************************************
+   508: ;* Func:	div10
+   509: ;* Desc:	Divides the value in the mpr by 10 and 
+   510: ;*			puts the remander in the 'r' register and
+   511: ;*			and the quotiant in the 'q' register.
+   512: ;*	DO NOT modify this function, trust me, it does
+   513: ;*	divide by 10 :)  ~DZ		
+   514: ;***********************************************************
+   515: div10:
+   516: 00015A   920F  push	r0				; Save register
+   517: 
+   518: 		; q = mpr / 10 = mpr * 0.000110011001101b
+   519: 00015B   2F50  mov		q, mpr			; q = mpr * 1.0b
+   520: 00015C   9556  lsr		q				; q >> 2
+   521: 00015D   9556  lsr		q				; q = mpr * 0.01b
+   522: 00015E   0F50  add		q, mpr			; q = (q + mpr) >> 1
+   523: 00015F   9556  lsr		q				; q = mpr * 0.101b
+   524: 000160   0F50  add		q, mpr			; q = (q + mpr) >> 3
+   525: 000161   9556  lsr		q
+   526: 000162   9556  lsr		q
+   527: 000163   9556  lsr		q				; q = mpr * 0.001101b
+   528: 000164   0F50  add		q, mpr			; q = (q + mpr) >> 1
+   529: 000165   9556  lsr		q				; q = mpr * 0.1001101b
+   530: 000166   0F50  add		q, mpr			; q = (q + mpr) >> 3
+   531: 000167   9556  lsr		q				
+   532: 000168   9556  lsr		q
+   533: 000169   9556  lsr		q				; q = mpr * 0.0011001101b
+   534: 00016A   0F50  add		q, mpr			; q = (q + mpr) >> 1
+   535: 00016B   9556  lsr		q				; q = mpr * 0.10011001101b
+   536: 00016C   0F50  add		q, mpr			; q = (q + mpr) >> 4
+   537: 00016D   9556  lsr		q
+   538: 00016E   9556  lsr		q
+   539: 00016F   9556  lsr		q
+   540: 000170   9556  lsr		q				; q = mpr * 0.000110011001101b
+   541: 
+   542: 		; compute the remainder as r = i - 10 * q
+   543: 		; calculate r = q * 10 = q * 1010b
+   544: 000171   2F65  mov		r, q			; r = q * 1
+   545: 000172   0F66  lsl		r				; r << 2
+   546: 000173   0F66  lsl		r				; r = q * 100b
+   547: 000174   0F65  add		r, q			; r = (r + q) << 1
+   548: 000175   0F66  lsl		r				; r = q * 1010b
+   549: 000176   2E06  mov		r0, r			; r0 = 10 * q
+   550: 000177   2F60  mov		r, mpr			; r = mpr
+   551: 000178   1960  sub		r, r0			; r = mpr - 10 * q
+   552: 
+   553: 		; Fix any errors that occur
+   554: 000179   306A  cpi		r, 10			; Compare with 10
+   555: 00017A   F018  brlo	div10_2			; do nothing if r < 10
+   556: 00017B   9553  inc		q				; fix qoutient
+   557: 00017C   506A  subi	r, 10			; fix remainder
+   558: 00017D   CFFB  rjmp	div10_1			; Continue until error is corrected
+   559: 
+   560: 00017E   900F  pop		r0				; Restore registers
+   561: 00017F   9508  ret						; Return from function
+  Continuing file main.asm
+ -> Warning 001: 5 symbol(s) defined, but not used!
+
+Program             :      299 words.
+Constants           :       16 words.
+Total program memory:      315 words.
+Eeprom space        :        0 bytes.
+Data segment        :        0 bytes.
+Compilation completed, no errors.
+Compilation endet 02.02.2017, 11:53:29

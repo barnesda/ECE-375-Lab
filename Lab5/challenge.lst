@@ -1,0 +1,592 @@
+gavrasm Gerd's AVR assembler version 3.6 (C)2017 by DG4FAC
+----------------------------------------------------------
+Source file: challenge.asm
+Hex file:    challenge.hex
+Eeprom file: challenge.eep
+Compiled:    15.02.2017, 22:26:00
+Pass:        2
+     1: ;***********************************************************
+     2: ;*
+     3: ;*	LargeNumArith.asm
+     4: ;*
+     5: ;*	Adds and subtracts 16 bit numbers
+     6: ;*	Multiplies 24 bit numbers
+     7: ;*
+     8: ;*	This is the skeleton file for Lab 5 of ECE 375
+     9: ;*
+    10: ;***********************************************************
+    11: ;*
+    12: ;*	 Author: Jeffrey Noe and Danny Barnes
+    13: ;*	   Date: 2/10/2017
+    14: ;*
+    15: ;***********************************************************
+    16: 
+    17: .include "m128def.inc"			; Include definition file
+ -> Warning 009: Include defs not necessary, using internal values!
+   File: challenge.asm, Line: 17
+   Source line: .include "m128def.inc"			; Include definition file
+    18: 
+    19: ;***********************************************************
+    20: ;*	Internal Register Definitions and Constants
+    21: ;***********************************************************
+    22: .def	mpr = r16				; Multipurpose register 
+    23: .def	rlo = r0				; Low byte of MUL result
+    24: .def	rhi = r1				; High byte of MUL result
+    25: .def	zero = r2				; Zero register, set to zero in INIT, useful for calculations
+    26: .def	A = r3					; A variable
+    27: .def	B = r4					; Another variable
+    28: .def	MUL_ADDER = R10			; Variable for multiplication adder
+    29: 
+    30: .def	oloop = r17				; Outer Loop Counter
+    31: .def	iloop = r18				; Inner Loop Counter
+    32: 
+    33: 
+    34: ;***********************************************************
+    35: ;*	Start of Code Segment
+    36: ;***********************************************************
+    37: .cseg							; Beginning of code segment
+    38: 
+    39: ;-----------------------------------------------------------
+    40: ; Interrupt Vectors
+    41: ;-----------------------------------------------------------
+    42: .org	$0000					; Beginning of IVs
+    43: 000000   C045  rjmp 	INIT			; Reset interrupt
+    44: 
+    45: .org	$0046					; End of Interrupt Vectors
+    46: 
+    47: ;-----------------------------------------------------------
+    48: ; Program Initialization
+    49: ;-----------------------------------------------------------
+    50: INIT:							; The initialization routine
+    51: 		; Initialize Stack Pointer
+    52: 000046   EF0F  ldi		mpr, low(RAMEND)
+    53: 000047   BF0D  out		SPL, mpr		; Load SPL with low byte of RAMEND
+    54: 000048   E100  ldi		mpr, high(RAMEND)
+    55: 000049   BF0E  out		SPH, mpr		; Load SPH with high byte of RAMEND
+    56: 
+    57: 
+    58: 00004A   2422  clr		zero			; Set the zero register to zero, maintain
+    59: 								; these semantics, meaning, don't
+    60: 								; load anything else into it.
+    61: 
+    62: ;-----------------------------------------------------------
+    63: ; Main Program
+    64: ;-----------------------------------------------------------
+    65: MAIN:							; The Main program
+    66: 
+    67: 		; Setup the ADD16 function direct test
+    68: 		;rcall ADD16
+    69: 
+    70: 				; (IN SIMULATOR) Enter values 0xA2FF and 0xF477 into data
+    71: 				; memory locations where ADD16 will get its inputs from
+    72: 				; (see "Data Memory Allocation" section below)
+    73: 
+    74: 				; Call ADD16 function to test its correctness
+    75: 				; (calculate A2FF + F477)
+    76: 
+    77: 				; Observe result in Memory window
+    78: 
+    79: 		; Setup the SUB16 function direct test
+    80: 		;rcall SUB16
+    81: 
+    82: 				; (IN SIMULATOR) Enter values 0xF08A and 0x4BCD into data
+    83: 				; memory locations where SUB16 will get its inputs from
+    84: 
+    85: 				; Call SUB16 function to test its correctness
+    86: 				; (calculate F08A - 4BCD)
+    87: 
+    88: 				; Observe result in Memory window
+    89: 
+    90: 		; Setup the MUL24 function direct test
+    91: 
+    92: 				; (IN SIMULATOR) Enter values 0xFFFFFF and 0xFFFFFF into data
+    93: 				; memory locations where MUL24 will get its inputs from
+    94: 
+    95: 				; Call MUL24 function to test its correctness
+    96: 				; (calculate FFFFFF * FFFFFF)
+    97: 
+    98: 				; Observe result in Memory window
+    99: 
+   100: 		; Call the COMPOUND function
+   101: 00004B   D054  rcall COMPOUND
+   102: 				; Observe final result in Memory window
+   103: 
+   104: 00004C   CFFF  rjmp	DONE			; Create an infinite while loop to signify the 
+   105: 								; end of the program.
+   106: 
+   107: ;***********************************************************
+   108: ;*	Functions and Subroutines
+   109: ;***********************************************************
+   110: 
+   111: ;-----------------------------------------------------------
+   112: ; Func: ADD16
+   113: ; Desc: Adds two 16-bit numbers and generates a 24-bit number
+   114: ;		where the high byte of the result contains the carry
+   115: ;		out bit.
+   116: ;-----------------------------------------------------------
+   117: ADD16:
+   118: 		; Ensure carry flag is cleared
+   119: 00004D   9488  CLC
+   120: 
+   121: 		; Load beginning address of first operand into X
+   122: 00004E   E1A0  ldi		XL, low(ADD16_OP1)	; Load low byte of address
+   123: 00004F   E0B1  ldi		XH, high(ADD16_OP1)	; Load high byte of address
+   124: 
+   125: 		; Load beginning address of second operand into Y
+   126: 000050   E1C2  ldi		YL, low(ADD16_OP2)	; Load low byte of address
+   127: 000051   E0D1  ldi		YH, high(ADD16_OP2)	; Load high byte of address
+   128: 
+   129: 		; Load beginning address of result into Z
+   130: 000052   E2E0  ldi		ZL, low(ADD16_Result)
+   131: 000053   E0F1  ldi		ZH, high(ADD16_Result)
+   132: 
+   133: 		; Load contents of X & Y register in A & B 
+   134: 000054   903D  LD		A, X+
+   135: 000055   9049  LD		B, Y+
+   136: 
+   137: 		; Execute the function
+   138: 		; Add the low bytes
+   139: 000056   0C43  add		B, A 
+   140: 	
+   141: 		; Store result in Z register.  Post-increment
+   142: 000057   9241  ST		Z+, B
+   143: 
+   144: 		; Load the high bytes
+   145: 000058   903C  LD		A, X
+   146: 000059   8048  LD		B, Y
+   147: 		
+   148: 		; Add the high bytes
+   149: 00005A   1C43  adc		B, A
+   150: 
+   151: 		;Store result in Z register.  Post-increment for carry
+   152: 00005B   9241  ST		Z+, B
+   153: 
+   154: 		; If there is no carry, do nothing.  
+   155: 		; Else, add a carry
+   156: 00005C   F410  brcc carry1
+   157: 00005D   E001  ldi		mpr, $01
+   158: 00005E   8300  ST		Z, mpr
+   159: 		
+   160: 		; Carry is cleared.  Do nothing
+   161: 00005F   0000  nop 
+   162: 			
+   163: 
+   164: 000060   9508  ret						; End a function with RET
+   165: 
+   166: ;-----------------------------------------------------------
+   167: ; Func: SUB16
+   168: ; Desc: Subtracts two 16-bit numbers and generates a 16-bit
+   169: ;		result.
+   170: ;-----------------------------------------------------------
+   171: SUB16:
+   172: 		; Execute the function here
+   173: 
+   174: 		; Load X, Y, Z registers with addresses
+   175: 000061   E2A4  ldi		XL, low(SUB16_OP1)
+   176: 000062   E0B1  ldi		XH, high(SUB16_OP1)
+   177: 
+   178: 000063   E2C6  ldi		YL, low(SUB16_OP2)
+   179: 000064   E0D1  ldi		YH, high(SUB16_OP2)
+   180: 
+   181: 000065   E2E8  ldi		ZL, low(SUB16_RESULT)
+   182: 000066   E0F1  ldi		ZH, high(SUB16_RESULT)
+   183: 
+   184: 		; Load contents of X & Y register in A & B 
+   185: 000067   903D  LD		A, X+
+   186: 000068   9049  LD		B, Y+
+   187: 
+   188: 		; A = A - B.  Then store in Z, post-increment
+   189: 000069   1834  sub		A, B
+   190: 00006A   9231  ST		Z+, A
+   191: 
+   192: 		; Load the high bytes
+   193: 00006B   903C  LD		A, X
+   194: 00006C   8048  LD		B, Y
+   195: 
+   196: 		; Subtract high bytes
+   197: 		; A = A - B
+   198: 00006D   0834  sbc		A, B
+   199: 00006E   9231  ST		Z+, A
+   200: 
+   201: 
+   202: 00006F   9508  ret						; End a function with RET
+   203: 
+   204: ;-----------------------------------------------------------
+   205: ; Func: MUL24
+   206: ; Desc: Multiplies two 24-bit numbers and generates a 48-bit 
+   207: ;		result.
+   208: ;-----------------------------------------------------------
+   209: MUL24:
+   210: 		; Execute the function here
+   211: 		; ld A, +X ( register where operand points to). Put this after jmp
+   212: 
+   213: 		; Load X, Y, Z registers with addresses
+   214: 000070   E4A0  ldi		XL, low(MUL24_OP1)
+   215: 000071   E0B1  ldi		XH, high(MUL24_OP1)
+   216: 
+   217: 000072   E4C3  ldi		YL, low(MUL24_OP2)
+   218: 000073   E0D1  ldi		YH, high(MUL24_OP2)
+   219: 
+   220: 000074   E4E6  ldi		ZL, low(MUL24_RESULT)
+   221: 000075   E0F1  ldi		ZH, high(MUL24_RESULT)
+   222: 
+   223: 		;load multiplier into result
+   224: 
+   225: 000076   E023  ldi iloop, 3
+   226: 
+   227: 000077   9109  ld mpr, Y+
+   228: 000078   9301  st Z+, mpr
+   229: 000079   952A  dec iloop
+   230: 00007A   F7E1  brne MUL24_LLOOP
+   231: 		
+   232: 		;Point Z to result MSB+1
+   233: 00007B   9633  adiw ZH:ZL, 3
+   234: 		
+   235: 		;load outer loop counter
+   236: 00007C   E118  ldi oloop, 24
+   237: 
+   238: 		;clear carry
+   239: 00007D   9488  clc
+   240: 
+   241: MUL24_OLOOP:	;Rotate result right through carry
+   242: 
+   243: 00007E   E026  ldi iloop, 6
+   244: 00007F   9102  ld mpr, -Z
+   245: 000080   9507  ror mpr
+   246: 000081   8300  st Z, mpr
+   247: 000082   952A  dec iloop
+   248: 000083   F7D9  brne MUL24_ILOOP1
+   249: 
+   250: 		;store status register to preserve carry bit
+   251: 
+   252: 000084   B70F  in mpr, SREG
+   253: 
+   254: 		;Skip over add if carry not set		
+   255: 
+   256: 000085   F478  brcc MUL24_ENDLOOP
+   257: 
+   258: 		;add multiplicand to MSB half of result
+   259: 
+   260: 000086   9633  adiw ZH:ZL, 3
+   261: 
+   262: 000087   8030  ld A, Z
+   263: 000088   904D  ld B, X+
+   264: 000089   0C34  add A, B
+   265: 00008A   9231  st Z+, A
+   266: 
+   267: 00008B   E022  ldi iloop, 2
+   268: 00008C   8030  ld A, Z
+   269: 00008D   904D  ld B, X+
+   270: 00008E   1C34  adc A, B
+   271: 00008F   9231  st Z+, A
+   272: 
+   273: 000090   952A  dec iloop
+   274: 000091   F7D1  brne MUL24_ILOOP2
+   275: 
+   276: 		;store status register to preserve carry bit
+   277: 
+   278: 000092   B70F  in mpr, SREG
+   279: 
+   280: 		;adjust pointers before looping again
+   281: 
+   282: 000093   9736  sbiw ZH:ZL, 6
+   283: 000094   9713  sbiw XH:XL, 3
+   284: 		
+   285: 000095   9636  adiw ZH:ZL, 6
+   286: 
+   287: 		;restore status register to preserve carry bit
+   288: 
+   289: 000096   BF0F  out SREG, mpr
+   290: 
+   291: 000097   951A  dec oloop
+   292: 000098   F729  brne MUL24_OLOOP
+   293: 
+   294: 		;Final rotate through carry 	
+   295: 
+   296: 000099   E026  ldi iloop, 6
+   297: 00009A   9102  ld mpr, -Z
+   298: 00009B   9507  ror mpr
+   299: 00009C   8300  st Z, mpr
+   300: 00009D   952A  dec iloop
+   301: 00009E   F7D9  brne MUL24_POSTLOOP
+   302: 			
+   303: 		
+   304: 00009F   9508  ret						; End a function with RET
+   305: 
+   306: ;-----------------------------------------------------------
+   307: ; Func: COMPOUND
+   308: ; Desc: Computes the compound expression ((D - E) + F)^2
+   309: ;		by making use of SUB16, ADD16, and MUL24.
+   310: ;
+   311: ;		D, E, and F are declared in program memory, and must
+   312: ;		be moved into data memory for use as input operands.
+   313: ;
+   314: ;		All result bytes should be cleared before beginning.
+   315: ;-----------------------------------------------------------
+   316: COMPOUND:
+   317: 
+   318: 		; Clear the result bytes
+   319: 
+   320: 0000A0   2700  clr mpr
+   321: 0000A1   E2A8  ldi XL, low(SUB16_RESULT)
+   322: 0000A2   E0B1  ldi XH, high(SUB16_RESULT)
+   323: 0000A3   930D  st X+, mpr
+   324: 0000A4   930D  st X+, mpr
+   325: 
+   326: 0000A5   E2A0  ldi XL, low(ADD16_RESULT)
+   327: 0000A6   E0B1  ldi XH, high(ADD16_RESULT)
+   328: 0000A7   930D  st X+, mpr
+   329: 0000A8   930D  st X+, mpr	
+   330: 0000A9   930D  st X+, mpr
+   331: 
+   332: 0000AA   E4A6  ldi XL, low(MUL24_RESULT)
+   333: 0000AB   E0B1  ldi XH, high(MUL24_RESULT)
+   334: 0000AC   930D  st X+, mpr
+   335: 0000AD   930D  st X+, mpr	
+   336: 0000AE   930D  st X+, mpr
+   337: 0000AF   930D  st X+, mpr
+   338: 0000B0   930D  st X+, mpr	
+   339: 0000B1   930D  st X+, mpr		
+   340: 
+   341: 		; Setup SUB16 with operands D and E
+   342: 		; Perform subtraction to calculate D - E
+   343: 0000B2   E4E2  ldi ZL, low(OperandD<<1)
+   344: 0000B3   E0F2  ldi ZH, high(OperandD<<1)
+   345: 0000B4   E2C4  ldi YL, low(SUB16_OP1)
+   346: 0000B5   E0D1  ldi YH, high(SUB16_OP1)	
+   347: 0000B6   9105  lpm mpr, Z+
+   348: 0000B7   9309  ST Y+, mpr
+   349: 0000B8   9105  lpm mpr, Z+
+   350: 0000B9   9309  ST Y+, mpr		
+   351: 		
+   352: 0000BA   E4E4  ldi ZL, low(OperandE<<1)
+   353: 0000BB   E0F2  ldi ZH, high(OperandE<<1)
+   354: 0000BC   E2C6  ldi YL, low(SUB16_OP2)
+   355: 0000BD   E0D1  ldi YH, high(SUB16_OP2)	
+   356: 0000BE   9105  lpm mpr, Z+
+   357: 0000BF   9309  ST Y+, mpr
+   358: 0000C0   9105  lpm mpr, Z+
+   359: 0000C1   9309  ST Y+, mpr
+   360: 
+   361: 0000C2   DF9E  rcall SUB16
+   362: 		
+   363: 		; Setup the ADD16 function with SUB16 result and operand F
+   364: 		; Perform addition next to calculate (D - E) + F
+   365: 0000C3   E2A8  ldi XL, low(SUB16_RESULT)
+   366: 0000C4   E0B1  ldi XH, high(SUB16_RESULT)
+   367: 0000C5   E1C0  ldi YL, low(ADD16_OP1)
+   368: 0000C6   E0D1  ldi YH, high(ADD16_OP1)	
+   369: 0000C7   910D  ld mpr, X+
+   370: 0000C8   9309  ST Y+, mpr
+   371: 0000C9   910D  ld mpr, X+
+   372: 0000CA   9309  ST Y+, mpr		
+   373: 		
+   374: 0000CB   E4E6  ldi ZL, low(OperandF<<1)
+   375: 0000CC   E0F2  ldi ZH, high(OperandF<<1)
+   376: 0000CD   E1C2  ldi YL, low(ADD16_OP2)
+   377: 0000CE   E0D1  ldi YH, high(ADD16_OP2)
+   378: 0000CF   9105  lpm mpr, Z+	
+   379: 0000D0   9309  ST Y+, mpr
+   380: 0000D1   9105  lpm mpr, Z+	
+   381: 0000D2   9309  ST Y+, mpr
+   382: 
+   383: 0000D3   DF79  rcall ADD16
+   384: 
+   385: 		; Setup the MUL24 function with ADD16 result as both operands
+   386: 		; Perform multiplication to calculate ((D - E) + F)^2
+   387: 0000D4   E2A0  ldi XL, low(ADD16_RESULT)
+   388: 0000D5   E0B1  ldi XH, high(ADD16_RESULT)
+   389: 0000D6   E4C0  ldi YL, low(MUL24_OP1)
+   390: 0000D7   E0D1  ldi YH, high(MUL24_OP1)	
+   391: 0000D8   910D  ld mpr, X+
+   392: 0000D9   9309  ST Y+, mpr
+   393: 0000DA   910D  ld mpr, X+
+   394: 0000DB   9309  ST Y+, mpr
+   395: 0000DC   910D  ld mpr, X+
+   396: 0000DD   9309  ST Y+, mpr
+   397: 
+   398: 0000DE   E2A0  ldi XL, low(ADD16_RESULT)
+   399: 0000DF   E0B1  ldi XH, high(ADD16_RESULT)
+   400: 0000E0   E4C3  ldi YL, low(MUL24_OP2)
+   401: 0000E1   E0D1  ldi YH, high(MUL24_OP2)	
+   402: 0000E2   910D  ld mpr, X+
+   403: 0000E3   9309  ST Y+, mpr
+   404: 0000E4   910D  ld mpr, X+
+   405: 0000E5   9309  ST Y+, mpr
+   406: 0000E6   910D  ld mpr, X+
+   407: 0000E7   9309  ST Y+, mpr	
+   408: 		
+   409: 
+   410: 0000E8   9508  ret						; End a function with RET
+   411: 
+   412: ;-----------------------------------------------------------
+   413: ; Func: MUL16
+   414: ; Desc: An example function that multiplies two 16-bit numbers
+   415: ;			A - Operand A is gathered from address $0101:$0100
+   416: ;			B - Operand B is gathered from address $0103:$0102
+   417: ;			Res - Result is stored in address 
+   418: ;					$0107:$0106:$0105:$0104
+   419: ;		You will need to make sure that Res is cleared before
+   420: ;		calling this function.
+   421: ;-----------------------------------------------------------
+   422: MUL16:
+   423: 
+   424: 		; WHY PUSH ALL THESE REGISTERS ONTO THE STACK
+   425: 0000E9   923F  push 	A				; Save A register
+   426: 0000EA   924F  push	B				; Save B register
+   427: 0000EB   921F  push	rhi				; Save rhi register
+   428: 0000EC   920F  push	rlo				; Save rlo register
+   429: 0000ED   922F  push	zero			; Save zero register
+   430: 0000EE   93BF  push	XH				; Save X-ptr
+   431: 0000EF   93AF  push	XL
+   432: 0000F0   93DF  push	YH				; Save Y-ptr
+   433: 0000F1   93CF  push	YL				
+   434: 0000F2   93FF  push	ZH				; Save Z-ptr
+   435: 0000F3   93EF  push	ZL
+   436: 0000F4   931F  push	oloop			; Save counters
+   437: 0000F5   932F  push	iloop				
+   438: 
+   439: 0000F6   2422  clr		zero			; Maintain zero semantics
+   440: 
+   441: 		; Set Y to beginning address of B
+   442: 0000F7   E0C2  ldi		YL, low(addrB)	; Load low byte
+   443: 0000F8   E0D1  ldi		YH, high(addrB)	; Load high byte
+   444: 
+   445: 		; Set Z to begginning address of resulting Product
+   446: 0000F9   E0E4  ldi		ZL, low(LAddrP)	; Load low byte
+   447: 0000FA   E0F1  ldi		ZH, high(LAddrP); Load high byte
+   448: 
+   449: 		; Begin outer for loop
+   450: 0000FB   E012  ldi		oloop, 2		; Load counter
+   451: MUL16_OLOOP:
+   452: 		; Set X to beginning address of A
+   453: 0000FC   E0A0  ldi		XL, low(addrA)	; Load low byte
+   454: 0000FD   E0B1  ldi		XH, high(addrA)	; Load high byte
+   455: 
+   456: 		; Begin inner for loop
+   457: 0000FE   E022  ldi		iloop, 2		; Load counter
+   458: MUL16_ILOOP:
+   459: 0000FF   903D  ld		A, X+			; Get byte of A operand
+   460: 000100   8048  ld		B, Y			; Get byte of B operand
+   461: 000101   9C34  mul		A,B				; Multiply A and B
+   462: 000102   9031  ld		A, Z+			; Get a result byte from memory
+   463: 000103   9041  ld		B, Z+			; Get the next result byte from memory
+   464: 000104   0C03  add		rlo, A			; rlo <= rlo + A
+   465: 000105   1C14  adc		rhi, B			; rhi <= rhi + B + carry
+   466: 000106   8030  ld		A, Z			; Get a third byte from the result
+   467: 000107   1C32  adc		A, zero			; Add carry to A
+   468: 000108   8230  st		Z, A			; Store third byte to memory
+   469: 000109   9212  st		-Z, rhi			; Store second byte to memory
+   470: 00010A   9202  st		-Z, rlo			; Store third byte to memory
+   471: 00010B   9631  adiw	ZH:ZL, 1		; Z <= Z + 1			
+   472: 00010C   952A  dec		iloop			; Decrement counter
+   473: 00010D   F789  brne	MUL16_ILOOP		; Loop if iLoop != 0
+   474: 		; End inner for loop
+   475: 
+   476: 00010E   9731  sbiw	ZH:ZL, 1		; Z <= Z - 1
+   477: 00010F   9621  adiw	YH:YL, 1		; Y <= Y + 1
+   478: 000110   951A  dec		oloop			; Decrement counter
+   479: 000111   F751  brne	MUL16_OLOOP		; Loop if oLoop != 0
+   480: 		; End outer for loop
+   481: 		 		
+   482: 000112   912F  pop		iloop			; Restore all registers in reverves order
+   483: 000113   911F  pop		oloop
+   484: 000114   91EF  pop		ZL				
+   485: 000115   91FF  pop		ZH
+   486: 000116   91CF  pop		YL
+   487: 000117   91DF  pop		YH
+   488: 000118   91AF  pop		XL
+   489: 000119   91BF  pop		XH
+   490: 00011A   902F  pop		zero
+   491: 00011B   900F  pop		rlo
+   492: 00011C   901F  pop		rhi
+   493: 00011D   904F  pop		B
+   494: 00011E   903F  pop		A
+   495: 00011F   9508  ret						; End a function with RET
+   496: 
+   497: ;-----------------------------------------------------------
+   498: ; Func: Template function header
+   499: ; Desc: Cut and paste this and fill in the info at the 
+   500: ;		beginning of your functions
+   501: ;-----------------------------------------------------------
+   502: FUNC:							; Begin a function with a label
+   503: 		; Save variable by pushing them to the stack
+   504: 
+   505: 		; Execute the function here
+   506: 		
+   507: 		; Restore variable by popping them from the stack in reverse order
+   508: 000120   9508  ret						; End a function with RET
+   509: 
+   510: 
+   511: ;***********************************************************
+   512: ;*	Stored Program Data
+   513: ;***********************************************************
+   514: 
+   515: ; Enter any stored data you might need here
+   516: 
+   517: OperandD:
+   518: 	.DW	0xFD51				; test value for operand D
+        000121 FD51
+   519: OperandE:
+   520: 	.DW	0x1EFF				; test value for operand E
+        000122 1EFF
+   521: OperandF:
+   522: 	.DW	0xFFFF				; test value for operand F
+        000123 FFFF
+   523: 
+   524: ;***********************************************************
+   525: ;*	Data Memory Allocation
+   526: ;***********************************************************
+   527: 
+   528: .dseg
+   529: .org	$0100				; data memory allocation for MUL16 example
+   530: addrA:	.byte 2
+   531: addrB:	.byte 2
+   532: LAddrP:	.byte 4
+   533: 
+   534: ; Below is an example of data memory allocation for ADD16.
+   535: ; Consider using something similar for SUB16 and MUL24.
+   536: 
+   537: .org	$0110				; data memory allocation for operands
+   538: ADD16_OP1:
+   539: 		.byte 2				; allocate two bytes for first operand of ADD16
+   540: ADD16_OP2:
+   541: 		.byte 2				; allocate two bytes for second operand of ADD16
+   542: 
+   543: .org	$0120				; data memory allocation for results
+   544: ADD16_Result:
+   545: 		.byte 3				; allocate three bytes for ADD16 result
+   546: 
+   547: ; Subtraction data memory allocation
+   548: .org	$0124				;data memory allocation for operands
+   549: SUB16_OP1:
+   550: 		.byte 2				; $0124 & $0125 allocated
+   551: SUB16_OP2:
+   552: 		.byte 2				; $0126 & $0127 allocated
+   553: SUB16_RESULT:
+   554: 		.byte 2				; $0128 & $0129 allocated
+   555: 
+   556: ; MUL24 data Memory Allocation
+   557: .org	$0140
+   558: MUL24_OP1:
+   559: 		.byte 3				; $0140, $0141, and $0142 allocated
+   560: MUL24_OP2:
+   561: 		.byte 3				; $0143, $0144, $0145 allocated
+   562: MUL24_RESULT:
+   563: 		.byte 6				; $0146, $0147, $0148, $0149, $0150, $0151 allocated
+   564: MUL24_ADDER:
+   565: 		.byte 6				; $0152, $0153, $0154 allocated................
+   566: 
+   567: ;***********************************************************
+   568: ;*	Additional Program Includes
+   569: ;***********************************************************
+   570: ; There are no additional file includes for this program
+ -> Warning 001: 6 symbol(s) defined, but not used!
+
+Program             :      220 words.
+Constants           :        3 words.
+Total program memory:      223 words.
+Eeprom space        :        0 bytes.
+Data segment        :       39 bytes.
+Compilation completed, no errors.
+Compilation endet 15.02.2017, 22:26:00
