@@ -22,6 +22,7 @@
 ;***********************************************************
 .def	mpr = r16				; Multipurpose register
 .def resetFlag = r23			; Flag variable to reset flag
+.def LEDDisplay = r24			; Maintains bits to display to LED's
 
 
 .equ	EngEnR = 4				; right Engine Enable Bit
@@ -117,6 +118,8 @@ INIT:
 
 		ldi r17, toggleSpeed
 		ldi resetFlag, 0b00001111
+		ldi LEDDisplay, 0b00000000
+		out PORTB, LEDDisplay
 
 		; Set initial speed, display on Port B pins 3:0
 
@@ -161,6 +164,9 @@ IncSpeed:
 		add mpr, r17
 		out OCR0, mpr
 
+		; Write speed value to led's
+		inc LEDDisplay
+		out PORTB, LEDDisplay
 
 
 SkipInc: ; Value is already at max speed
@@ -186,6 +192,10 @@ DecSpeed:
 		sub mpr, r17
 		out OCR0, mpr
 
+		; Write speed value to led's
+		dec LEDDisplay
+		out PORTB, LEDDisplay
+
 SkipDec: ; Already at min speed
 
 		; Restore any saved variables by popping from stack
@@ -208,6 +218,10 @@ MaxSpeed:
 
 		; Restore any saved variables by popping from stack
 
+		; Indicate speed on LED's
+		 ldi mpr, 0b00001111
+		 out PORTB, mpr
+
 		out EIFR, resetFlag; Clear flags
 		ret						; End a function with RET
 
@@ -225,6 +239,10 @@ Stop:
 		out OCR0, mpr
 
 		; Restore any saved variables by popping from stack
+
+		; Indicate stop speed on LED's
+		ldi mpr, 0b00000000
+		out PORTB, mpr
 
 		out EIFR, resetFlag ; Clear flags
 		ret						; End a function with RET
