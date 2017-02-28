@@ -23,6 +23,7 @@
 .def	mpr = r16				; Multipurpose register
 .def resetFlag = r23			; Flag variable to reset flag
 .def LEDDisplay = r24			; Maintains bits to display to LED's
+.def speedModified = r25		; Sets to 1 if speed was modified. 0 otherwise
 
 
 .equ	EngEnR = 4				; right Engine Enable Bit
@@ -100,28 +101,33 @@ INIT:
 
 		; Configure 8-bit Timer/Counters
 		; Configure timer/counter 0
-		;SBI DDRB, PB4			; Set bit 4 of port B (OCO) for output
 		LDI mpr, 0b01101111		; Activate fast PWN mode with toggle
 		OUT TCCR0, mpr			; (non-inverting) & set prescaler to 1024
 
 								; no prescaling
 
 		; Configure timer/counter 2
-		;SBI DDRB, PB4			; Set bit 4 of port B (OCO) for output
 		LDI mpr, 0b01101101		; Activate fast PWN mode with toggle
 		OUT TCCR2, mpr			; (non-inverting) & set prescaler to 1024 (last three bits 101 for TCCR2 and 111 for TCCR0)
 
+		ldi mpr, 0b00000101		;WGM13 and WGM12 are both 0's for normal mode, p. 134 of manual
+		OUT TCCR1B, mpr			; Set 16-bit timer/counter1 to normal mode. Starts clock running 
 
-		; Set TekBot to Move Forward (1<<EngDirR|1<<EngDirL)
-		;LDI mpr, movFwd
-		;OUT PORTB, mpr
 
+	
+		; Configure Resgisters
 		ldi r17, toggleSpeed
 		ldi resetFlag, 0b00001111
+		ldi speedModified, 0
+
+		; Set initial speed, display on Port B pins 3:0
+		; Initialize LED's and motors to be off initially
 		ldi LEDDisplay, 0b00000000
 		out PORTB, LEDDisplay
 
-		; Set initial speed, display on Port B pins 3:0
+		; Initialize the LCD Display
+		RCALL LCDInit
+		
 
 		; Enable global interrupts (if any are used)
 		sei
@@ -168,6 +174,9 @@ IncSpeed:
 		inc LEDDisplay
 		out PORTB, LEDDisplay
 
+		; set speedModified to 1
+		ldi speedModified, 1
+
 
 SkipInc: ; Value is already at max speed
 		; Restore any saved variables by popping from stack
@@ -196,6 +205,9 @@ DecSpeed:
 		dec LEDDisplay
 		out PORTB, LEDDisplay
 
+		; set speedModified to 1
+		ldi speedModified, 1
+
 SkipDec: ; Already at min speed
 
 		; Restore any saved variables by popping from stack
@@ -222,6 +234,9 @@ MaxSpeed:
 		 ldi mpr, 0b00001111
 		 out PORTB, mpr
 
+		; set speedModified to 1
+		ldi speedModified, 1
+
 		out EIFR, resetFlag; Clear flags
 		ret						; End a function with RET
 
@@ -240,6 +255,10 @@ Stop:
 
 		; Restore any saved variables by popping from stack
 
+		; set speedModified to 1
+		ldi speedModified, 1
+
+
 		; Indicate stop speed on LED's
 		ldi mpr, 0b00000000
 		out PORTB, mpr
@@ -247,7 +266,14 @@ Stop:
 		out EIFR, resetFlag ; Clear flags
 		ret						; End a function with RET
 
+;-----------------------------------------------------------
+; Func:	countSeconds
+; Desc:	Called when a new second is reached to display to the LCD
+;-----------------------------------------------------------
+countSeconds:
 
+
+	ret
 
 ;***********************************************************
 ;*	Stored Program Data
