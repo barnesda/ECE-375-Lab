@@ -25,14 +25,14 @@
  <LABELS>
   <INIT><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>73</LINE></INIT>
   <IncSpeed><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>159</LINE></IncSpeed>
-  <DecSpeed><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>191</LINE></DecSpeed>
-  <MaxSpeed><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>221</LINE></MaxSpeed>
-  <Stop><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>247</LINE></Stop>
+  <DecSpeed><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>188</LINE></DecSpeed>
+  <MaxSpeed><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>217</LINE></MaxSpeed>
+  <Stop><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>241</LINE></Stop>
   <LCDInit><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\LCDDriver.asm</FILE><LINE>75</LINE></LCDInit>
   <MAIN><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>137</LINE></MAIN>
-  <SkipInc><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>181</LINE></SkipInc>
-  <SkipDec><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>211</LINE></SkipDec>
-  <countSeconds><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>273</LINE></countSeconds>
+  <SkipInc><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>178</LINE></SkipInc>
+  <SkipDec><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>206</LINE></SkipDec>
+  <countSeconds><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>265</LINE></countSeconds>
   <LCDINIT_L1><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\LCDDriver.asm</FILE><LINE>139</LINE></LCDINIT_L1>
   <LCDWait><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\LCDDriver.asm</FILE><LINE>492</LINE></LCDWait>
   <LCDWriteCmd><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\LCDDriver.asm</FILE><LINE>436</LINE></LCDWriteCmd>

@@ -21,11 +21,12 @@
 ;*	Internal Register Definitions and Constants
 ;***********************************************************
 .def	mpr = r16				; Multipurpose register
-.def resetFlag = r23			; Flag variable to reset flag
+.def olcnt = r23				; counter for outer loop
 .def LEDDisplay = r24			; Maintains bits to display to LED's
-.def speedModified = r25		; Sets to 1 if speed was modified. 0 otherwise
+.def ilcnt = r25				; counter for inner loop
 
-
+.equ	WTime = 3				; Wait time = 10 ms
+.equ	resetFlag = 0b00001111	; Resets variable to reset flags
 .equ	EngEnR = 4				; right Engine Enable Bit
 .equ	EngEnL = 7				; left Engine Enable Bit
 .equ	EngDirR = 5				; right Engine Direction Bit
@@ -117,8 +118,8 @@ INIT:
 	
 		; Configure Resgisters
 		ldi r17, toggleSpeed
-		ldi resetFlag, 0b00001111
-		ldi speedModified, 0
+		
+		
 
 		; Set initial speed, display on Port B pins 3:0
 		; Initialize LED's and motors to be off initially
@@ -174,14 +175,11 @@ IncSpeed:
 		inc LEDDisplay
 		out PORTB, LEDDisplay
 
-		; set speedModified to 1
-		ldi speedModified, 1
-
 
 SkipInc: ; Value is already at max speed
 		; Restore any saved variables by popping from stack
-
-		out EIFR, resetFlag
+		ldi mpr, resetFlag
+		out EIFR, mpr
 		ret						; End a function with RET
 
 ;-----------------------------------------------------------
@@ -191,6 +189,10 @@ SkipInc: ; Value is already at max speed
 DecSpeed:
 
 		; If needed, save variables by pushing to the stack
+
+		; Wait for 3 ms
+		ldi mpr, WTime
+		rcall Wait
 
 		; Check if we are already at min speed
 		in mpr, OCR0
@@ -205,13 +207,12 @@ DecSpeed:
 		dec LEDDisplay
 		out PORTB, LEDDisplay
 
-		; set speedModified to 1
-		ldi speedModified, 1
 
 SkipDec: ; Already at min speed
 
 		; Restore any saved variables by popping from stack
-		out EIFR, resetFlag
+		ldi mpr, resetFlag
+		out EIFR, mpr
 		ret						; End a function with RET
 
 ;-----------------------------------------------------------
@@ -234,10 +235,8 @@ MaxSpeed:
 		 ldi mpr, 0b00001111
 		 out PORTB, mpr
 
-		; set speedModified to 1
-		ldi speedModified, 1
-
-		out EIFR, resetFlag; Clear flags
+		ldi mpr, resetFlag
+		out EIFR, mpr
 		ret						; End a function with RET
 
 ;-----------------------------------------------------------
@@ -255,25 +254,43 @@ Stop:
 
 		; Restore any saved variables by popping from stack
 
-		; set speedModified to 1
-		ldi speedModified, 1
-
 
 		; Indicate stop speed on LED's
 		ldi mpr, 0b00000000
 		out PORTB, mpr
 
-		out EIFR, resetFlag ; Clear flags
+		ldi mpr, resetFlag
+		out EIFR, mpr
 		ret						; End a function with RET
 
-;-----------------------------------------------------------
-; Func:	countSeconds
-; Desc:	Called when a new second is reached to display to the LCD
-;-----------------------------------------------------------
-countSeconds:
+;----------------------------------------------------------------
+; Sub:	Wait
+; Desc:	A wait loop that is 16 + 159975*waitcnt cycles or roughly
+;		waitcnt*10ms.  Just initialize wait for the specific amount
+;		of time in 10ms intervals. Here is the general eqaution
+;		for the number of clock cycles in the wait loop:
+;			((3 * ilcnt + 3) * olcnt + 3) * waitcnt + 13 + call
+;----------------------------------------------------------------
+Wait:
+		push	mpr			; Save wait register
+		push	ilcnt			; Save ilcnt register
+		push	olcnt			; Save olcnt register
+
+Loop:	ldi		olcnt, 224		; load olcnt register
+OLoop:	ldi		ilcnt, 237		; load ilcnt register
+ILoop:	dec		ilcnt			; decrement ilcnt
+		brne	ILoop			; Continue Inner Loop
+		dec		olcnt		; decrement olcnt
+		brne	OLoop			; Continue Outer Loop
+		dec		mpr		; Decrement wait
+		brne	Loop			; Continue Wait loop
+
+		pop		olcnt		; Restore olcnt register
+		pop		ilcnt		; Restore ilcnt register
+		pop		mpr			; Restore wait register
+		ret					; Return from subroutine
 
 
-	ret
 
 ;***********************************************************
 ;*	Stored Program Data
