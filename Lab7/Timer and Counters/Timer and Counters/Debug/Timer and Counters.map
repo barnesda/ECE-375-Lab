@@ -1,5 +1,5 @@
 
-AVRASM ver. 2.2.6  C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm Tue Feb 28 13:32:45 2017
+AVRASM ver. 2.2.6  C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm Tue Feb 28 19:14:36 2017
 
 
 EQU  SIGNATURE_000 0000001e
@@ -868,8 +868,10 @@ EQU  TWIaddr      00000042
 EQU  SPMRaddr     00000044
 EQU  INT_VECTORS_SIZE 00000046
 DEF  mpr          r16
+DEF  olcnt        r23
 DEF  LEDDisplay   r24
 DEF  ilcnt        r25
+EQU  WTime        00000014
 EQU  resetFlag    0000000f
 EQU  EngEnR       00000004
 EQU  EngEnL       00000007
@@ -880,58 +882,14 @@ EQU  PortDResistorConfig 0000000f
 EQU  movFwd       00000060
 EQU  toggleSpeed  00000011
 CSEG INIT         00000046
-CSEG IncSpeed     00000063
-CSEG DecSpeed     0000006d
-CSEG MaxSpeed     00000077
-CSEG Stop         0000007f
-CSEG LCDInit      00000088
-CSEG MAIN         00000062
-CSEG SkipInc      0000006a
-CSEG SkipDec      00000074
-CSEG countSeconds 00000087
-DEF  wait         r17
-DEF  count        r18
-DEF  line         r19
-DEF  type         r20
-DEF  q            r21
-DEF  r            r22
-EQU  LCDLine1     00000080
-EQU  LCDLine2     000000c0
-EQU  LCDClear     00000001
-EQU  LCDHome      00000002
-EQU  LCDPulse     00000008
-EQU  LCDCmd       00000000
-EQU  LCDTxt       00000001
-EQU  LCDMaxCnt    00000010
-EQU  LCDLn1Addr   00000100
-EQU  LCDLn2Addr   00000110
-CSEG LCDINIT_L1   000000b3
-CSEG LCDWait      00000174
-CSEG LCDWriteCmd  00000150
-CSEG LCDClr       000000ea
-CSEG LCDWrite     000000c7
-CSEG LCDWrLn1     000000ca
-CSEG LCDWrLn2     000000da
-CSEG LCDSetLine   0000013e
-CSEG LCDWriteLine 0000014a
-CSEG LCDClrLn1    000000ed
-CSEG LCDClrLn2    000000fd
-CSEG LCDClrLine   00000143
-CSEG LCDWriteByte 0000010d
-CSEG LCDWriteByte_3 0000011c
-CSEG LCDWriteByte_1 00000116
-CSEG LCDWriteByte_2 00000119
-CSEG LCDWriteChar 0000015e
-CSEG Bin2ASCII    00000120
-CSEG B2A_1        0000012a
-CSEG B2A_3        00000131
-CSEG B2A_2        0000012f
-CSEG div10        0000017c
-CSEG LCDClrLine_1 00000145
-CSEG LCDWriteLine_1 0000014b
-CSEG LCDWriteData 00000167
-CSEG LCDWC_L1     00000156
-CSEG LCDW_L1      00000175
-CSEG LCDW_L2      00000176
-CSEG div10_1      0000019b
-CSEG div10_2      000001a0
+CSEG IncSpeed     00000062
+CSEG DecSpeed     0000006e
+CSEG MaxSpeed     0000007a
+CSEG Stop         00000084
+CSEG MAIN         00000061
+CSEG Wait         0000008e
+CSEG SkipInc      0000006b
+CSEG SkipDec      00000077
+CSEG Loop         00000091
+CSEG OLoop        00000092
+CSEG ILoop        00000093

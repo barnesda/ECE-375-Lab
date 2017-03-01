@@ -1,12 +1,10 @@
 
-AVRASM ver. 2.2.6  C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm Tue Feb 28 13:32:45 2017
+AVRASM ver. 2.2.6  C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm Tue Feb 28 19:14:36 2017
 
 [builtin](2): Including file 'C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.1.130\avrasm\inc\m128def.inc'
 C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm(18): Including file 'C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.1.130\avrasm\inc\m128def.inc'
-C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm(280): Including file 'C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\LCDDriver.asm'
 [builtin](2): Including file 'C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.1.130\avrasm\inc\m128def.inc'
 C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm(18): Including file 'C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.1.130\avrasm\inc\m128def.inc'
-C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm(280): Including file 'C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\LCDDriver.asm'
                                  
                                  ;***********************************************************
                                  
@@ -1292,10 +1290,11 @@ C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Coun
                                  ;*	Internal Register Definitions and Constants
                                  ;***********************************************************
                                  .def	mpr = r16				; Multipurpose register
-                                 ;.def resetFlag = r23			; Flag variable to reset flag
+                                 .def olcnt = r23				; counter for outer loop
                                  .def LEDDisplay = r24			; Maintains bits to display to LED's
-                                 .def ilcnt = r25				; Sets to 1 if speed was modified. 0 otherwise
+                                 .def ilcnt = r25				; counter for inner loop
                                  
+                                 .equ	WTime = 20				; Wait time = 100 ms
                                  .equ	resetFlag = 0b00001111	; Resets variable to reset flags
                                  .equ	EngEnR = 4				; right Engine Enable Bit
                                  .equ	EngEnL = 7				; left Engine Enable Bit
@@ -1321,19 +1320,19 @@ C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Coun
                                  		; place instructions in interrupt vectors here, if needed
                                  		; Button-layout should be: Stop : MaxSpeed : DecSpeed : IncSpeed
                                  .org	$0002					; Increase speed requested
-000002 d060                      		rcall IncSpeed			; Call increase speed function
+000002 d05f                      		rcall IncSpeed			; Call increase speed function
 000003 9518                      		reti					; Return from increase speed function
                                  
                                  .org	$0004					; Decrease speed requested
-000004 d068                      		rcall DecSpeed			; Call decrease speed function
+000004 d069                      		rcall DecSpeed			; Call decrease speed function
 000005 9518                      		reti					; Return from decrease speed function
                                  
                                  .org	$0006					; Max Speed Requested
-000006 d070                      		rcall MaxSpeed			; Call max speed function
+000006 d073                      		rcall MaxSpeed			; Call max speed function
 000007 9518                      		reti					; Return from max speed function
                                  
                                  .org	$0008					; Stop Requested
-000008 d076                      		rcall Stop				; Call stop function
+000008 d07b                      		rcall Stop				; Call stop function
 000009 9518                      		reti
                                  
                                  .org	$0046					; end of interrupt vectors
@@ -1397,11 +1396,11 @@ C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Coun
 00005f bb88                      		out PORTB, LEDDisplay
                                  
                                  		; Initialize the LCD Display
-000060 d027                      		RCALL LCDInit
+                                 		; RCALL LCDInit
                                  		
                                  
                                  		; Enable global interrupts (if any are used)
-000061 9478                      		sei
+000060 9478                      		sei
                                  ;***********************************************************
                                  ;*	Main Program
                                  ;***********************************************************
@@ -1411,7 +1410,7 @@ C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Coun
                                  								; if pressed, adjust speed
                                  								; also, adjust speed indication
                                  
-000062 cfff                      		rjmp	MAIN			; return to top of MAIN
+000061 cfff                      		rjmp	MAIN			; return to top of MAIN
                                  
                                  ;***********************************************************
                                  ;*	Functions and Subroutines
@@ -1431,26 +1430,31 @@ C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Coun
                                  
                                  		; If needed, save variables by pushing to the stack
                                  
+                                 		
+                                 		; Wait for 50 ms to account for button bounce
+000062 e104                      		ldi mpr, WTime
+000063 d02a                      		rcall Wait
+                                 
                                  
                                  		; Check if we are already at max speed
-000063 b701                      		in mpr, OCR0
-000064 3f0f                      		cpi mpr, 255
-000065 f021                      		breq SkipInc
+000064 b701                      		in mpr, OCR0
+000065 3f0f                      		cpi mpr, 255
+000066 f021                      		breq SkipInc
                                  
                                  		; Else, increment the speed and write to OCR0
-000066 0f01                      		add mpr, r17
-000067 bf01                      		out OCR0, mpr
+000067 0f01                      		add mpr, r17
+000068 bf01                      		out OCR0, mpr
                                  
                                  		; Write speed value to led's
-000068 9583                      		inc LEDDisplay
-000069 bb88                      		out PORTB, LEDDisplay
+000069 9583                      		inc LEDDisplay
+00006a bb88                      		out PORTB, LEDDisplay
                                  
                                  
                                  SkipInc: ; Value is already at max speed
                                  		; Restore any saved variables by popping from stack
-00006a e00f                      		ldi mpr, resetFlag
-00006b bf08                      		out EIFR, mpr
-00006c 9508                      		ret						; End a function with RET
+00006b e00f                      		ldi mpr, resetFlag
+00006c bf08                      		out EIFR, mpr
+00006d 9508                      		ret						; End a function with RET
                                  
                                  ;-----------------------------------------------------------
                                  ; Func:	DecSpeed
@@ -1460,26 +1464,30 @@ C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Coun
                                  
                                  		; If needed, save variables by pushing to the stack
                                  
+                                 		; Wait for 30 ms
+00006e e104                      		ldi mpr, WTime
+00006f d01e                      		rcall Wait
+                                 
                                  		; Check if we are already at min speed
-00006d b701                      		in mpr, OCR0
-00006e 3000                      		cpi mpr, 0
-00006f f021                      		breq SkipDec
+000070 b701                      		in mpr, OCR0
+000071 3000                      		cpi mpr, 0
+000072 f021                      		breq SkipDec
                                  
                                  		; Else, decrement the speed and write to OCR0
-000070 1b01                      		sub mpr, r17
-000071 bf01                      		out OCR0, mpr
+000073 1b01                      		sub mpr, r17
+000074 bf01                      		out OCR0, mpr
                                  
                                  		; Write speed value to led's
-000072 958a                      		dec LEDDisplay
-000073 bb88                      		out PORTB, LEDDisplay
+000075 958a                      		dec LEDDisplay
+000076 bb88                      		out PORTB, LEDDisplay
                                  
                                  
                                  SkipDec: ; Already at min speed
                                  
                                  		; Restore any saved variables by popping from stack
-000074 e00f                      		ldi mpr, resetFlag
-000075 bf08                      		out EIFR, mpr
-000076 9508                      		ret						; End a function with RET
+000077 e00f                      		ldi mpr, resetFlag
+000078 bf08                      		out EIFR, mpr
+000079 9508                      		ret						; End a function with RET
                                  
                                  ;-----------------------------------------------------------
                                  ; Func:	MaxSpeed
@@ -1490,20 +1498,24 @@ C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Coun
                                  		; If needed, save variables by pushing to the stack
                                  
                                  		; Execute the function here
+                                 		
+                                 		; Wait for 30 ms to account for button bounce
+00007a e104                      		ldi mpr, WTime
+00007b d012                      		rcall Wait
                                  
-000077 b701                      		in mpr, OCR0
-000078 ef0f                      		ldi mpr, 255
-000079 bf01                      		out OCR0, mpr
+00007c b701                      		in mpr, OCR0
+00007d ef0f                      		ldi mpr, 255
+00007e bf01                      		out OCR0, mpr
                                  
                                  		; Restore any saved variables by popping from stack
                                  
                                  		; Indicate speed on LED's
-00007a e00f                      		 ldi mpr, 0b00001111
-00007b bb08                      		 out PORTB, mpr
+00007f e00f                      		 ldi mpr, 0b00001111
+000080 bb08                      		 out PORTB, mpr
                                  
-00007c e00f                      		ldi mpr, resetFlag
-00007d bf08                      		out EIFR, mpr
-00007e 9508                      		ret						; End a function with RET
+000081 e00f                      		ldi mpr, resetFlag
+000082 bf08                      		out EIFR, mpr
+000083 9508                      		ret						; End a function with RET
                                  
                                  ;-----------------------------------------------------------
                                  ; Func:	Stop
@@ -1512,31 +1524,54 @@ C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Coun
                                  Stop:
                                  
                                  		; If needed, save variables by pushing to the stack
+                                 		
+                                 		; Wait for 30 ms to account for button bounce
+000084 e104                      		ldi mpr, WTime
+000085 d008                      		rcall Wait
+                                 
                                  
                                  		; Execute the function here
-00007f b701                      		in mpr, OCR0
-000080 e000                      		ldi mpr, 0
-000081 bf01                      		out OCR0, mpr
+000086 b701                      		in mpr, OCR0
+000087 e000                      		ldi mpr, 0
+000088 bf01                      		out OCR0, mpr
                                  
                                  		; Restore any saved variables by popping from stack
                                  
                                  
                                  		; Indicate stop speed on LED's
-000082 e000                      		ldi mpr, 0b00000000
-000083 bb08                      		out PORTB, mpr
+000089 e000                      		ldi mpr, 0b00000000
+00008a bb08                      		out PORTB, mpr
                                  
-000084 e00f                      		ldi mpr, resetFlag
-000085 bf08                      		out EIFR, mpr
-000086 9508                      		ret						; End a function with RET
+00008b e00f                      		ldi mpr, resetFlag
+00008c bf08                      		out EIFR, mpr
+00008d 9508                      		ret						; End a function with RET
                                  
-                                 ;-----------------------------------------------------------
-                                 ; Func:	countSeconds
-                                 ; Desc:	Called when a new second is reached to display to the LCD
-                                 ;-----------------------------------------------------------
-                                 countSeconds:
+                                 ;----------------------------------------------------------------
+                                 ; Sub:	Wait
+                                 ; Desc:	A wait loop that is 16 + 159975*waitcnt cycles or roughly
+                                 ;		waitcnt*10ms.  Just initialize wait for the specific amount
+                                 ;		of time in 10ms intervals. Here is the general eqaution
+                                 ;		for the number of clock cycles in the wait loop:
+                                 ;			((3 * ilcnt + 3) * olcnt + 3) * waitcnt + 13 + call
+                                 ;----------------------------------------------------------------
+                                 Wait:
+00008e 930f                      		push	mpr			; Save wait register
+00008f 939f                      		push	ilcnt			; Save ilcnt register
+000090 937f                      		push	olcnt			; Save olcnt register
                                  
+000091 ee70                      Loop:	ldi		olcnt, 224		; load olcnt register
+000092 ee9d                      OLoop:	ldi		ilcnt, 237		; load ilcnt register
+000093 959a                      ILoop:	dec		ilcnt			; decrement ilcnt
+000094 f7f1                      		brne	ILoop			; Continue Inner Loop
+000095 957a                      		dec		olcnt		; decrement olcnt
+000096 f7d9                      		brne	OLoop			; Continue Outer Loop
+000097 950a                      		dec		mpr		; Decrement wait
+000098 f7c1                      		brne	Loop			; Continue Wait loop
                                  
-000087 9508                      	ret
+000099 917f                      		pop		olcnt		; Restore olcnt register
+00009a 919f                      		pop		ilcnt		; Restore ilcnt register
+00009b 910f                      		pop		mpr			; Restore wait register
+00009c 9508                      		ret					; Return from subroutine
                                  
                                  
                                  
@@ -1548,570 +1583,8 @@ C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Coun
                                  ;***********************************************************
                                  ;*	Additional Program Includes
                                  ;***********************************************************
-                                 .include "LCDDriver.asm"
-                                 
-                                 ;*
-                                 ;*	LCDDriver.asm	-	V2.0
-                                 ;*
-                                 ;*	Contains the neccessary functions to display text to a
-                                 ;*	2 x 16 character LCD Display.  Additional functions
-                                 ;*	include a conversion routine from an unsigned 8-bit
-                                 ;*	binary number to and ASCII text string.
-                                 ;*
-                                 ;*	Version 2.0 - Added support for accessing the LCD
-                                 ;*		Display via the serial port. See version 1.0 for
-                                 ;*		accessing a memory mapped LCD display.
-                                 ;*
-                                 ;***********************************************************
-                                 ;*
-                                 ;*	 Author: David Zier
-                                 ;*	   Date: March 17, 2003
-                                 ;*	Company: TekBots(TM), Oregon State University - EECS
-                                 ;*	Version: 2.0
-                                 ;*
-                                 ;***********************************************************
-                                 ;*	Rev	Date	Name		Description
-                                 ;*----------------------------------------------------------
-                                 ;*	-	8/20/02	Zier		Initial Creation of Version 1.0
-                                 ;*	A	3/7/03	Zier		V2.0 - Updated for USART LCD
-                                 ;*
-                                 ;*
-                                 ;***********************************************************
-                                 
-                                 ;***********************************************************
-                                 ;*	Internal Register Definitions and Constants
-                                 ;*		NOTE: A register MUST be named 'mpr' in the Main Code
-                                 ;*			It is recomended to use register r16.
-                                 ;*		WARNING: Register r17-r22 are reserved and cannot be
-                                 ;*			renamed outside of the LCD Driver functions. Doing
-                                 ;*			so will damage the functionality of the LCD Driver
-                                 ;***********************************************************
-                                 .def	wait = r17				; Wait Loop Register
-                                 .def	count = r18				; Character Counter
-                                 .def	line = r19				; Line Select Register
-                                 .def	type = r20				; LCD data type: Command or Text
-                                 .def	q = r21					; Quotient for div10
-                                 .def	r = r22					; Remander for div10
-                                 
-                                 .equ	LCDLine1 = $80			; LCD Line 1 select command
-                                 .equ	LCDLine2 = $c0			; LCD Line 2 select command
-                                 .equ	LCDClear = $01			; LCD Clear Command
-                                 .equ	LCDHome = $02			; LCD Set Cursor Home Command
-                                 .equ	LCDPulse = $08			; LCD Pulse signal, used to simulate
-                                 								; write signal
-                                 
-                                 .equ	LCDCmd = $00			; Constant used to write a command
-                                 .equ	LCDTxt = $01			; Constant used to write a text character
-                                 
-                                 .equ	LCDMaxCnt = 16			; Maximum number of characters per line
-                                 .equ	LCDLn1Addr = $0100		; Beginning address for Line 1 data
-                                 .equ	LCDLn2Addr = $0110		; Beginning address for Line 2 data
-                                 
-                                 ;-----------------------------------------------------------
-                                 ;***********************************************************
-                                 ;*	Public LCD Driver Suboutines and Functions
-                                 ;*		These functions and subroutines can be called safely
-                                 ;*		from within any program
-                                 ;***********************************************************
-                                 ;-----------------------------------------------------------
-                                 
-                                 
-                                 ;*******************************************************
-                                 ;* SubRt: 	LCDInit
-                                 ;* Desc: 	Initialize the Serial Port and the Hitachi
-                                 ;*			Display 8 Bit inc DD-RAM
-                                 ;*			Pointer with no features
-                                 ;*			- 2 LInes with 16 characters
-                                 ;*******************************************************
-                                 LCDInit:
-000088 930f                      		push	mpr				; Save the state of machine
-000089 b70f                      		in		mpr, SREG		; Save the SREG
-00008a 930f                      		push	mpr				;
-00008b 931f                      		push	wait			; Save wait
-                                 
-                                 		; Setup the Communication Ports
-                                 		; Port B: Output
-                                 		; Port D: Input w/ internal pullup resistors
-                                 		; Port F: Output on Pin 3
-00008c e000                      		ldi		mpr, $00		; Initialize Port B for outputs
-00008d bb08                      		out		PORTB, mpr		; Port B outputs high
-00008e ef0f                      		ldi		mpr, $ff		; except for any overrides
-00008f bb07                      		out		DDRB, mpr		;
-000090 e000                      		ldi		mpr, $00		; Initialize Port D for inputs
-000091 bb02                      		out		PORTD, mpr		; with Tri-State
-000092 e000                      		ldi		mpr, $00		; except for any overrides
-000093 bb01                      		out		DDRD, mpr		;
-000094 e000                      		ldi		mpr, $00		; Initialize Port F Pin 3 to
-000095 9300 0062                 		sts		PORTF, mpr		; output inorder to twiddle the
-000097 e008                      		ldi		mpr, (1<<DDF3)	; LCD interface
-000098 9300 0061                 		sts		DDRF, mpr		; Must NOT override this port
-                                 
-                                 		; Setup the Serial Functionality
-                                 		; SPI Type: Master
-                                 		; SPI Clock Rate: 2*1000.000 kHz
-                                 		; SPI Clock Phase: Cycle Half
-                                 		; SPI Clock Polarity: Low
-                                 		; SPI Data Order: MSB First
-00009a e500                      		ldi		mpr, (1<<SPE|1<<MSTR)
-00009b b90d                      		out		SPCR, mpr		; Set Serial Port Control Register
-00009c e001                      		ldi		mpr, (1<<SPI2X)
-00009d b90e                      		out		SPSR, mpr		; Set Serial Port Status Register
-                                 
-                                 		; Setup External SRAM configuration
-                                 		; $0460 - $7FFF / $8000 - $FFFF
-                                 		; Lower page wait state(s): None
-                                 		; Uppoer page wait state(s): 2r/w
-00009e e800                      		ldi		mpr, (1<<SRE)	;
-00009f bf05                      		out		MCUCR, mpr		; Initialize MCUCR
-0000a0 e402                      		ldi		mpr, (1<<SRL2|1<<SRW11)
-0000a1 9300 006d                 		sts		XMCRA, mpr		; Initialize XMCRA
-0000a3 e800                      		ldi		mpr, (1<<XMBK)	;
-0000a4 9300 006c                 		sts		XMCRB, mpr		; Initialize XMCRB
-                                 
-                                 		; Initialize USART0
-                                 		; Communication Parameter: 8 bit, 1 stop, No Parity
-                                 		; USART0 Rx: On
-                                 		; USART0 Tx: On
-                                 		; USART0 Mode: Asynchronous
-                                 		; USART0 Baudrate: 9600
-0000a6 e000                      		ldi		mpr, $00		;
-0000a7 b90b                      		out		UCSR0A, mpr		; Init UCSR0A
-0000a8 e108                      		ldi		mpr, (1<<RXEN0|1<<TXEN0)
-0000a9 b90a                      		out		UCSR0B, mpr		; Init UCSR0B
-0000aa e006                      		ldi		mpr, (1<<UCSZ01|1<<UCSZ00)
-0000ab 9300 0095                 		sts		UCSR0C, mpr		; Init UCSR0C
-0000ad e000                      		ldi		mpr, $00		;
-0000ae 9300 0090                 		sts		UBRR0H, mpr		; Init UBRR0H
-0000b0 e607                      		ldi		mpr, $67		;
-0000b1 b909                      		out		UBRR0L, mpr		; Init UBRR0L
-                                 
-                                 		; Initialize the LCD Display
-0000b2 e006                      		ldi		mpr, 6			;
-                                 LCDINIT_L1:
-0000b3 ef1a                      		ldi		wait, 250		; 15ms of Display
-0000b4 d0bf                      		rcall	LCDWait			; Bootup wait
-0000b5 950a                      		dec		mpr				;
-0000b6 f7e1                      		brne	LCDINIT_L1		;
-                                 
-0000b7 e308                      		ldi		mpr, $38		; Display Mode set
-0000b8 d097                      		rcall 	LCDWriteCmd		;
-0000b9 e008                      		ldi		mpr, $08		; Display Off
-0000ba d095                      		rcall	LCDWriteCmd		;
-0000bb e001                      		ldi		mpr, $01		; Display Clear
-0000bc d093                      		rcall	LCDWriteCmd		;
-0000bd e006                      		ldi		mpr, $06		; Entry mode set
-0000be d091                      		rcall	LCDWriteCmd		;
-0000bf e00c                      		ldi		mpr, $0c		; Display on
-0000c0 d08f                      		rcall	LCDWriteCmd		;
-0000c1 d028                      		rcall	LCDClr			; Clear display
-                                 
-0000c2 911f                      		pop		wait			; Restore wait
-0000c3 910f                      		pop		mpr				; Restore SREG
-0000c4 bf0f                      		out		SREG, mpr		;
-0000c5 910f                      		pop		mpr				; Restore mpr
-0000c6 9508                      		ret						; Return from subroutine
-                                 
-                                 ;*******************************************************
-                                 ;* Func:	LCDWrite
-                                 ;* Desc:	Generic Write Function that writes both lines
-                                 ;*			of text out to the LCD
-                                 ;*			- Line 1 data is in address space $0100-$010F
-                                 ;*			- Line 2 data is in address space $0110-$010F
-                                 ;*******************************************************
-                                 LCDWrite:
-0000c7 d002                      		rcall LCDWrLn1			; Write Line 1
-0000c8 d011                      		rcall LCDWrLn2			; Write Line 2
-0000c9 9508                      		ret 					; Return from function
-                                 
-                                 ;*******************************************************
-                                 ;* Func:	LCDWrLn1
-                                 ;* Desc:	This function will write the first line of
-                                 ;*			data to the first line of the LCD Display
-                                 ;*******************************************************
-                                 LCDWrLn1:
-0000ca 930f                      		push 	mpr				; Save mpr
-0000cb 93ef                      		push	ZL				; Save Z pointer
-0000cc 93ff                      		push	ZH				;
-0000cd 932f                      		push	count			; Save the count register
-0000ce 933f                      		push	line			; Save the line register
-                                 
-0000cf e0e0                      		ldi		ZL, low(LCDLn1Addr)
-0000d0 e0f1                      		ldi		ZH, high(LCDLn1Addr)
-0000d1 e830                      		ldi		line, LCDLine1	; Set LCD line to Line 1
-0000d2 d06b                      		rcall	LCDSetLine		; Restart at the beginning of line 1
-0000d3 d076                      		rcall	LCDWriteLine	; Write the line of text
-                                 
-0000d4 913f                      		pop		line
-0000d5 912f                      		pop		count			; Restore the counter
-0000d6 91ff                      		pop		ZH				; Restore Z pointer
-0000d7 91ef                      		pop		ZL				;
-0000d8 910f                      		pop 	mpr				; Restore mpr
-0000d9 9508                      		ret						; Return from function
-                                 
-                                 ;*******************************************************
-                                 ;* Func:	LCDWrLn2
-                                 ;* Desc:	This function will write the second line of
-                                 ;*			data to the second line of the LCD Display
-                                 ;*******************************************************
-                                 LCDWrLn2:
-0000da 930f                      		push 	mpr				; Save mpr
-0000db 93ef                      		push	ZL				; Save Z pointer
-0000dc 93ff                      		push	ZH				;
-0000dd 932f                      		push	count			; Save the count register
-0000de 933f                      		push	line			; Save the line register
-                                 
-0000df e1e0                      		ldi		ZL, low(LCDLn2Addr)
-0000e0 e0f1                      		ldi		ZH, high(LCDLn2Addr)
-0000e1 ec30                      		ldi		line, LCDLine2	; Set LCD line to Line 2
-0000e2 d05b                      		rcall	LCDSetLine		; Restart at the beginning of line 2
-0000e3 d066                      		rcall	LCDWriteLine	; Write the line of text
-                                 
-0000e4 913f                      		pop		line
-0000e5 912f                      		pop		count			; Restore the counter
-0000e6 91ff                      		pop		ZH				; Restore Z pointer
-0000e7 91ef                      		pop		ZL				;
-0000e8 910f                      		pop 	mpr				; Restore mpr
-0000e9 9508                      		ret						; Return from function
-                                 
-                                 ;*******************************************************
-                                 ;* Func:	LCDClr
-                                 ;* Desc:	Generic Clear Subroutine that clears both
-                                 ;*			lines of the LCD and Data Memory storage area
-                                 ;*******************************************************
-                                 LCDClr:
-0000ea d002                      		rcall	LCDClrLn1		; Clear Line 1
-0000eb d011                      		rcall	LCDClrLn2		; Clear Line 2
-0000ec 9508                      		ret						; Return from Subroutine
-                                 
-                                 ;*******************************************************
-                                 ;* Func:	LCDClrLn1
-                                 ;* Desc:	This subroutine will clear the first line of
-                                 ;*			the data and the first line of the LCD Display
-                                 ;*******************************************************
-                                 LCDClrLn1:
-0000ed 930f                      		push	mpr				; Save mpr
-0000ee 933f                      		push	line			; Save line register
-0000ef 932f                      		push	count			; Save the count register
-0000f0 93ef                      		push	ZL				; Save Z pointer
-0000f1 93ff                      		push	ZH				;
-                                 
-0000f2 e830                      		ldi		line, LCDline1	; Set Access to Line 1 of LCD
-0000f3 d04a                      		rcall	LCDSetLine		; Set Z pointer to address of line 1 data
-0000f4 e0e0                      		ldi		ZL, low(LCDLn1Addr)
-0000f5 e0f1                      		ldi		ZH, high(LCDLn1Addr)
-0000f6 d04c                      		rcall	LCDClrLine		; Call the Clear Line function
-                                 
-0000f7 91ff                      		pop		ZH				; Restore Z pointer
-0000f8 91ef                      		pop		ZL				;
-0000f9 912f                      		pop		count			; Restore the count register
-0000fa 913f                      		pop		line			; Restore line register
-0000fb 910f                      		pop		mpr				; Restore mpr
-0000fc 9508                      		ret						; Return from Subroutine
-                                 
-                                 ;*******************************************************
-                                 ;* Func:	LCDClrLn2
-                                 ;* Desc:	This subroutine will clear the second line of
-                                 ;*			the data and the second line of the LCD Display
-                                 ;*******************************************************
-                                 LCDClrLn2:
-0000fd 930f                      		push	mpr				; Save mpr
-0000fe 933f                      		push	line			; Save line register
-0000ff 932f                      		push	count			; Save the count register
-000100 93ef                      		push	ZL				; Save Z pointer
-000101 93ff                      		push	ZH				;
-                                 
-000102 ec30                      		ldi		line, LCDline2	; Set Access to Line 2 of LCD
-000103 d03a                      		rcall	LCDSetLine		; Set Z pointer to address of line 2 data
-000104 e1e0                      		ldi		ZL, low(LCDLn2Addr)
-000105 e0f1                      		ldi		ZH, high(LCDLn2Addr)
-000106 d03c                      		rcall	LCDClrLine		; Call the Clear Line function
-                                 
-000107 91ff                      		pop		ZH				; Restore Z pointer
-000108 91ef                      		pop		ZL				;
-000109 912f                      		pop		count			; Restore the count register
-00010a 913f                      		pop		line			; Restore line register
-00010b 910f                      		pop		mpr				; Restore mpr
-00010c 9508                      		ret						; Return from Subroutine
-                                 
-                                 ;*******************************************************
-                                 ;* Func:	LCDWriteByte
-                                 ;* Desc:	This is a complex and low level function that
-                                 ;*			allows any program to write any ASCII character
-                                 ;*			(Byte) anywhere in the LCD Display.  There
-                                 ;*			are several things that need to be initialized
-                                 ;*			before this function is called:
-                                 ;*		count - Holds the index value of the line to where
-                                 ;*				the char is written, 0-15(39).  i.e. if
-                                 ;*				count has the value of 3, then the char is
-                                 ;*				going to be written to the third element of
-                                 ;*				the line.
-                                 ;*		line  - Holds the line number that the char is going
-                                 ;*				to be written to, (1 or 2).
-                                 ;*		mpr	  - Contains the value of the ASCII character to
-                                 ;*				be written (0-255)
-                                 ;*********************************************************
-                                 LCDWriteByte:
-00010d 930f                      		push	mpr				; Save the mpr
-00010e 933f                      		push	line			; Save the line
-00010f 932f                      		push	count			; Save the count
-                                 								; Preform sanity checks on count and line
-000110 3228                      		cpi		count, 40		; Make sure count is within range
-000111 f450                      		brsh	LCDWriteByte_3	; Do nothing and exit function
-000112 3031                      		cpi		line, 1			; If (line == 1)
-000113 f411                      		brne	LCDWriteByte_1	;
-000114 e830                      		ldi		line, LCDLine1	; Load line 1 base LCD Address
-000115 c003                      		rjmp	LCDWriteByte_2	; Continue on with function
-                                 LCDWriteByte_1:
-000116 3032                      		cpi		line, 2			; If (line == 2)
-000117 f421                      		brne	LCDWriteByte_3	; Do nothing and exit function
-000118 ec30                      		ldi		line, LCDLine2	; Load line 2 base LCD Address
-                                 
-                                 LCDWriteByte_2:					; Write char to LCD
-000119 0f32                      		add		line, count		; Set the correct LCD address
-00011a d023                      		rcall	LCDSetLine		; Set the line address to LCD
-00011b d042                      		rcall	LCDWriteChar	; Write Char to LCD Display
-                                 
-                                 LCDWriteByte_3:					; Exit Function
-00011c 912f                      		pop		count			; Restore the count
-00011d 913f                      		pop		line			; Restore the line
-00011e 910f                      		pop		mpr				; Restore the mpr
-00011f 9508                      		ret						; Return from function
-                                 
-                                 ;*******************************************************
-                                 ;* Func:	Bin2ASCII
-                                 ;* Desc:	Converts a binary number into an ASCII
-                                 ;*			text string equivalent.
-                                 ;*			- The binary number needs to be in the mpr
-                                 ;*			- The Start Address of where the text will
-                                 ;*			 	be placed needs to be in the X Register
-                                 ;*			- The count of the characters created are
-                                 ;*				added to the count register
-                                 ;*******************************************************
-                                 Bin2ASCII:
-000120 930f                      		push	mpr				; save mpr
-000121 936f                      		push	r				; save r
-000122 935f                      		push	q				; save q
-000123 93bf                      		push	XH				; save X-pointer
-000124 93af                      		push	XL				;
-                                 
-                                 		; Determine the range of mpr
-000125 3604                      		cpi		mpr, 100		; is mpr >= 100
-000126 f018                      		brlo	B2A_1			; goto next check
-000127 e023                      		ldi		count, 3		; Three chars are written
-000128 9613                      		adiw	XL, 3			; Increment X 3 address spaces
-000129 c007                      		rjmp	B2A_3			; Continue with program
-00012a 300a                      B2A_1:	cpi		mpr, 10			; is mpr >= 10
-00012b f018                      		brlo	B2A_2			; Continue with program
-00012c e022                      		ldi		count, 2		; Two chars are written
-00012d 9612                      		adiw	XL, 2			; Increment X 2 address spaces
-00012e c002                      		rjmp	B2A_3			; Continue with program
-00012f 9611                      B2A_2:	adiw	XL, 1			; Increment X 1 address space
-000130 e021                      		ldi		count, 1 		; One char is written
-                                 
-                                 B2A_3:	;Do-While statement that converts Binary to ASCII
-000131 d04a                      		rcall	div10			; Call the div10 function
-000132 e300                      		ldi		mpr, '0'		; Set the base ASCII integer value
-000133 0f06                      		add		mpr, r			; Create the ASCII integer value
-000134 930e                      		st		-X, mpr			; Load ASCII value to memory
-000135 2f05                      		mov		mpr, q			; Set mpr to quotiant value
-000136 3000                      		cpi		mpr, 0			; does mpr == 0
-000137 f7c9                      		brne	B2A_3			; do while (mpr != 0)
-                                 
-000138 91af                      		pop		XL				; restore X-pointer
-000139 91bf                      		pop		XH				;
-00013a 915f                      		pop 	q				; restore q
-00013b 916f                      		pop		r				; restore r
-00013c 910f                      		pop		mpr				; restore mpr
-00013d 9508                      		ret						; return from function
-                                 
-                                 ;-------------------------------------------------------
-                                 ;*******************************************************
-                                 ;* Private LCD Driver Functions and Subroutines
-                                 ;*	NOTE: It is not recommended to call these functions
-                                 ;*	      or subroutines, only call the Public ones.
-                                 ;*******************************************************
-                                 ;-------------------------------------------------------
-                                 
-                                 ;*******************************************************
-                                 ;* Func:	LCDSetLine
-                                 ;* Desc:	Change line to be written to
-                                 ;*******************************************************
-                                 LCDSetLine:
-00013e 930f                      		push	mpr				; Save mpr
-00013f 2f03                      		mov		mpr,line		; Copy Command Data to mpr
-000140 d00f                      		rcall	LCDWriteCmd		; Write the Command
-000141 910f                      		pop		mpr				; Restore the mpr
-000142 9508                      		ret						; Return from function
-                                 
-                                 ;*******************************************************
-                                 ;* Func:	LCDClrLine
-                                 ;* Desc:	Manually clears a single line within an LCD
-                                 ;*			Display and Data Memory by writing 16
-                                 ;*			consecutive ASCII spaces $20 to both the LCD
-                                 ;*			and the memory.  The line to be cleared must
-                                 ;*			first be set in the LCD and the Z pointer is
-                                 ;*			pointing the first element in Data Memory
-                                 ;*******************************************************
-                                 LCDClrLine:
-000143 e200                      		ldi		mpr, ' '		; The space char to be written
-000144 e120                      		ldi		count, LCDMaxCnt; The character count
-                                 LCDClrLine_1:
-000145 9301                      		st		Z+, mpr			; Clear data memory element
-000146 d017                      		rcall	LCDWriteChar	; Clear LCD memory element
-000147 952a                      		dec		count			; Decrement the count
-000148 f7e1                      		brne	LCDClrLine_1	; Continue untill all elements are cleared
-000149 9508                      		ret						; Return from function
-                                 
-                                 ;*******************************************************
-                                 ;* Func:	LCDWriteLine
-                                 ;* Desc:	Writes a line of text to the LCD Display.
-                                 ;*			This routine takes a data element pointed to
-                                 ;*			by the Z-pointer and copies it to the LCD
-                                 ;*			Display for the duration of the line.  The
-                                 ;*			line the Z-pointer must be set prior to the
-                                 ;*			function call.
-                                 ;*******************************************************
-                                 LCDWriteLine:
-00014a e120                      		ldi		count, LCDMaxCnt; The character count
-                                 LCDWriteLine_1:
-00014b 9101                      		ld		mpr, Z+			; Get the data element
-00014c d011                      		rcall	LCDWriteChar	; Write element to LCD Display
-00014d 952a                      		dec		count			; Decrement the count
-00014e f7e1                      		brne	LCDWriteLine_1	; Continue untill all elements are written
-00014f 9508                      		ret						; Return from function
-                                 
-                                 ;*******************************************************
-                                 ;* Func:	LCDWriteCmd
-                                 ;* Desc:	Write command that is in the mpr to LCD
-                                 ;*******************************************************
-                                 LCDWriteCmd:
-000150 934f                      		push	type			; Save type register
-000151 931f                      		push	wait			; Save wait register
-000152 e040                      		ldi		type, LCDCmd	; Set type to Command data
-000153 d013                      		rcall	LCDWriteData	; Write data to LCD
-000154 930f                      		push	mpr				; Save mpr register
-000155 e002                      		ldi		mpr, 2			; Wait approx. 4.1 ms
-                                 LCDWC_L1:
-000156 ec1d                      		ldi		wait, 205		; Wait 2050 us
-000157 d01c                      		rcall	LCDWait			;
-000158 950a                      		dec		mpr				; The wait loop cont.
-000159 f7e1                      		brne	LCDWC_L1		;
-00015a 910f                      		pop		mpr				; Restore mpr
-00015b 911f                      		pop		wait			; Restore wait register
-00015c 914f                      		pop		type			; Restore type register
-00015d 9508                      		ret						; Return from function
-                                 
-                                 ;*******************************************************
-                                 ;* Func:	LCDWriteChar
-                                 ;* Desc:	Write character data that is in the mpr
-                                 ;*******************************************************
-                                 LCDWriteChar:
-00015e 934f                      		push	type			; Save type register
-00015f 931f                      		push	wait			; Save the wait register
-000160 e041                      		ldi		type, LCDTxt	; Set type to Text data
-000161 d005                      		rcall	LCDWriteData	; Write data to LCD
-000162 e110                      		ldi		wait, 16		; Delay 160 us
-000163 d010                      		rcall	LCDWait			;
-000164 911f                      		pop		wait			; Restore wait register
-000165 914f                      		pop		type			; Restore type register
-000166 9508                      		ret						; Return from function
-                                 
-                                 ;*******************************************************
-                                 ;* Func:	LCDWriteData
-                                 ;* Desc:	Write data or command to LCD
-                                 ;*******************************************************
-                                 LCDWriteData:
-000167 b94f                      		out		SPDR, type		; Send type to SP
-000168 e012                      		ldi		wait, 2			; Wait 2 us
-000169 d00a                      		rcall	LCDWait			; Call Wait function
-00016a b90f                      		out		SPDR,mpr		; Send data to serial port
-00016b e012                      		ldi		wait, 2			; Wait 2 us
-00016c d007                      		rcall	LCDWait			; Call Wait function
-00016d e018                      		ldi		wait, LCDPulse	; Use wait temporarially to
-00016e 9310 0062                 		sts		PORTF, wait		; to send write pulse to LCD
-000170 e010                      		ldi		wait, $00		;
-000171 9310 0062                 		sts		PORTF, wait		;
-000173 9508                      		ret						; Return from function
-                                 
-                                 ;*******************************************************
-                                 ;* Func:	LCDWait
-                                 ;* Desc:	A wait loop that is 10 + 159*wait cycles or
-                                 ;*			roughly wait*10us.  Just initialize wait
-                                 ;*			for the specific amount of time in 10us
-                                 ;*			intervals.
-                                 ;*******************************************************
-000174 930f                      LCDWait:push	mpr				; Save mpr
-000175 e409                      LCDW_L1:ldi		mpr, $49		; Load with a 10us value
-000176 950a                      LCDW_L2:dec		mpr				; Inner Wait Loop
-000177 f7f1                      		brne	LCDW_L2
-000178 951a                      		dec		wait			; Outer Wait Loop
-000179 f7d9                      		brne	LCDW_L1
-00017a 910f                      		pop		mpr				; Restore mpr
-00017b 9508                      		ret						; Return from Wait Function
-                                 
-                                 ;*******************************************************
-                                 ;*	Bin2ASCII routines that can be used as a psuedo-
-                                 ;*			printf function to convert an 8-bit binary
-                                 ;*			number into the unigned decimal ASCII text
-                                 ;*******************************************************
-                                 
-                                 ;***********************************************************
-                                 ;* Func:	div10
-                                 ;* Desc:	Divides the value in the mpr by 10 and
-                                 ;*			puts the remander in the 'r' register and
-                                 ;*			and the quotiant in the 'q' register.
-                                 ;*	DO NOT modify this function, trust me, it does
-                                 ;*	divide by 10 :)  ~DZ
-                                 ;***********************************************************
-                                 div10:
-00017c 920f                      		push	r0				; Save register
-                                 
-                                 		; q = mpr / 10 = mpr * 0.000110011001101b
-00017d 2f50                      		mov		q, mpr			; q = mpr * 1.0b
-00017e 9556                      		lsr		q				; q >> 2
-00017f 9556                      		lsr		q				; q = mpr * 0.01b
-000180 0f50                      		add		q, mpr			; q = (q + mpr) >> 1
-000181 9556                      		lsr		q				; q = mpr * 0.101b
-000182 0f50                      		add		q, mpr			; q = (q + mpr) >> 3
-000183 9556                      		lsr		q
-000184 9556                      		lsr		q
-000185 9556                      		lsr		q				; q = mpr * 0.001101b
-000186 0f50                      		add		q, mpr			; q = (q + mpr) >> 1
-000187 9556                      		lsr		q				; q = mpr * 0.1001101b
-000188 0f50                      		add		q, mpr			; q = (q + mpr) >> 3
-000189 9556                      		lsr		q
-00018a 9556                      		lsr		q
-00018b 9556                      		lsr		q				; q = mpr * 0.0011001101b
-00018c 0f50                      		add		q, mpr			; q = (q + mpr) >> 1
-00018d 9556                      		lsr		q				; q = mpr * 0.10011001101b
-00018e 0f50                      		add		q, mpr			; q = (q + mpr) >> 4
-00018f 9556                      		lsr		q
-000190 9556                      		lsr		q
-000191 9556                      		lsr		q
-000192 9556                      		lsr		q				; q = mpr * 0.000110011001101b
-                                 
-                                 		; compute the remainder as r = i - 10 * q
-                                 		; calculate r = q * 10 = q * 1010b
-000193 2f65                      		mov		r, q			; r = q * 1
-000194 0f66                      		lsl		r				; r << 2
-000195 0f66                      		lsl		r				; r = q * 100b
-000196 0f65                      		add		r, q			; r = (r + q) << 1
-000197 0f66                      		lsl		r				; r = q * 1010b
-000198 2e06                      		mov		r0, r			; r0 = 10 * q
-000199 2f60                      		mov		r, mpr			; r = mpr
-00019a 1960                      		sub		r, r0			; r = mpr - 10 * q
-                                 
-                                 		; Fix any errors that occur
-00019b 306a                      div10_1:cpi		r, 10			; Compare with 10
-00019c f018                      		brlo	div10_2			; do nothing if r < 10
-00019d 9553                      		inc		q				; fix qoutient
-00019e 506a                      		subi	r, 10			; fix remainder
-00019f cffb                      		rjmp	div10_1			; Continue until error is corrected
-                                 
-0001a0 900f                      div10_2:pop		r0				; Restore registers
-0001a1 9508                      		ret						; Return from function
+                                 ; .include "LCDDriver.asm"
                                  ; Comments below the 'include'
-                                 		; There are no additional file includes for this program
 
 
 RESOURCE USE INFORMATION
@@ -2129,40 +1602,40 @@ counted separately from r26..r31 here.
 .dseg memory usage only counts static data declared with .byte
 
 "ATmega128" register use summary:
-x  :   1 y  :   0 z  :   2 r0 :   4 r1 :   0 r2 :   0 r3 :   0 r4 :   0 
+x  :   0 y  :   0 z  :   0 r0 :   0 r1 :   0 r2 :   0 r3 :   0 r4 :   0 
 r5 :   0 r6 :   0 r7 :   0 r8 :   0 r9 :   0 r10:   0 r11:   0 r12:   0 
-r13:   0 r14:   0 r15:   0 r16: 135 r17:  19 r18:  19 r19:  20 r20:   7 
-r21:  28 r22:  13 r23:   0 r24:   6 r25:   0 r26:   5 r27:   2 r28:   0 
-r29:   0 r30:  12 r31:  12 
-Registers used: 15 out of 35 (42.9%)
+r13:   0 r14:   0 r15:   0 r16:  55 r17:   3 r18:   0 r19:   0 r20:   0 
+r21:   0 r22:   0 r23:   4 r24:   6 r25:   4 r26:   0 r27:   0 r28:   0 
+r29:   0 r30:   0 r31:   0 
+Registers used: 5 out of 35 (14.3%)
 
 "ATmega128" instruction use summary:
-.lds  :   0 .sts  :   0 adc   :   0 add   :  10 adiw  :   3 and   :   0 
+.lds  :   0 .sts  :   0 adc   :   0 add   :   1 adiw  :   0 and   :   0 
 andi  :   0 asr   :   0 bclr  :   0 bld   :   0 brbc  :   0 brbs  :   0 
 brcc  :   0 brcs  :   0 break :   0 breq  :   2 brge  :   0 brhc  :   0 
-brhs  :   0 brid  :   0 brie  :   0 brlo  :   3 brlt  :   0 brmi  :   0 
-brne  :   9 brpl  :   0 brsh  :   1 brtc  :   0 brts  :   0 brvc  :   0 
+brhs  :   0 brid  :   0 brie  :   0 brlo  :   0 brlt  :   0 brmi  :   0 
+brne  :   3 brpl  :   0 brsh  :   0 brtc  :   0 brts  :   0 brvc  :   0 
 brvs  :   0 bset  :   0 bst   :   0 call  :   0 cbi   :   0 cbr   :   0 
 clc   :   0 clh   :   0 cli   :   0 cln   :   0 clr   :   0 cls   :   0 
 clt   :   0 clv   :   0 clz   :   0 com   :   0 cp    :   0 cpc   :   0 
-cpi   :   9 cpse  :   0 dec   :   7 elpm  :   0 eor   :   0 fmul  :   0 
-fmuls :   0 fmulsu:   0 icall :   0 ijmp  :   0 in    :   5 inc   :   2 
-jmp   :   0 ld    :   1 ldd   :   0 ldi   :  75 lds   :   0 lpm   :   0 
-lsl   :   3 lsr   :  15 mov   :   6 movw  :   0 mul   :   0 muls  :   0 
-mulsu :   0 neg   :   0 nop   :   0 or    :   0 ori   :   0 out   :  36 
-pop   :  39 push  :  39 rcall :  36 ret   :  22 reti  :   4 rjmp  :   6 
+cpi   :   2 cpse  :   0 dec   :   4 elpm  :   0 eor   :   0 fmul  :   0 
+fmuls :   0 fmulsu:   0 icall :   0 ijmp  :   0 in    :   4 inc   :   1 
+jmp   :   0 ld    :   0 ldd   :   0 ldi   :  27 lds   :   0 lpm   :   0 
+lsl   :   0 lsr   :   0 mov   :   0 movw  :   0 mul   :   0 muls  :   0 
+mulsu :   0 neg   :   0 nop   :   0 or    :   0 ori   :   0 out   :  23 
+pop   :   3 push  :   3 rcall :   8 ret   :   5 reti  :   4 rjmp  :   2 
 rol   :   0 ror   :   0 sbc   :   0 sbci  :   0 sbi   :   0 sbic  :   0 
 sbis  :   0 sbiw  :   0 sbr   :   0 sbrc  :   0 sbrs  :   0 sec   :   0 
 seh   :   0 sei   :   1 sen   :   0 ser   :   0 ses   :   0 set   :   0 
-sev   :   0 sez   :   0 sleep :   0 spm   :   0 st    :   2 std   :   0 
-sts   :   9 sub   :   2 subi  :   1 swap  :   0 tst   :   0 wdr   :   0 
+sev   :   0 sez   :   0 sleep :   0 spm   :   0 st    :   0 std   :   0 
+sts   :   1 sub   :   1 subi  :   0 swap  :   0 tst   :   0 wdr   :   0 
 
-Instructions used: 27 out of 114 (23.7%)
+Instructions used: 18 out of 114 (15.8%)
 
 "ATmega128" memory use summary [bytes]:
 Segment   Begin    End      Code   Data   Used    Size   Use%
 ---------------------------------------------------------------
-[.cseg] 0x000000 0x000344    714      0    714  131072   0.5%
+[.cseg] 0x000000 0x00013a    192      0    192  131072   0.1%
 [.dseg] 0x000100 0x000100      0      0      0    4096   0.0%
 [.eseg] 0x000000 0x000000      0      0      0    4096   0.0%
 

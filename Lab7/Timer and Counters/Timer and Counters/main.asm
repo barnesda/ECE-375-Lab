@@ -25,7 +25,7 @@
 .def LEDDisplay = r24			; Maintains bits to display to LED's
 .def ilcnt = r25				; counter for inner loop
 
-.equ	WTime = 3				; Wait time = 10 ms
+.equ	WTime = 20				; Wait time = 100 ms
 .equ	resetFlag = 0b00001111	; Resets variable to reset flags
 .equ	EngEnR = 4				; right Engine Enable Bit
 .equ	EngEnL = 7				; left Engine Enable Bit
@@ -127,7 +127,7 @@ INIT:
 		out PORTB, LEDDisplay
 
 		; Initialize the LCD Display
-		RCALL LCDInit
+		; RCALL LCDInit
 		
 
 		; Enable global interrupts (if any are used)
@@ -161,6 +161,11 @@ IncSpeed:
 
 		; If needed, save variables by pushing to the stack
 
+		
+		; Wait for 50 ms to account for button bounce
+		ldi mpr, WTime
+		rcall Wait
+
 
 		; Check if we are already at max speed
 		in mpr, OCR0
@@ -190,7 +195,7 @@ DecSpeed:
 
 		; If needed, save variables by pushing to the stack
 
-		; Wait for 3 ms
+		; Wait for 30 ms
 		ldi mpr, WTime
 		rcall Wait
 
@@ -224,6 +229,10 @@ MaxSpeed:
 		; If needed, save variables by pushing to the stack
 
 		; Execute the function here
+		
+		; Wait for 30 ms to account for button bounce
+		ldi mpr, WTime
+		rcall Wait
 
 		in mpr, OCR0
 		ldi mpr, 255
@@ -246,6 +255,11 @@ MaxSpeed:
 Stop:
 
 		; If needed, save variables by pushing to the stack
+		
+		; Wait for 30 ms to account for button bounce
+		ldi mpr, WTime
+		rcall Wait
+
 
 		; Execute the function here
 		in mpr, OCR0
@@ -300,6 +314,6 @@ ILoop:	dec		ilcnt			; decrement ilcnt
 ;***********************************************************
 ;*	Additional Program Includes
 ;***********************************************************
-.include "LCDDriver.asm"
+; .include "LCDDriver.asm"
 ; Comments below the 'include'
 		; There are no additional file includes for this program
