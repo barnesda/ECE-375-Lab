@@ -24,15 +24,15 @@
  <LABELS>
   <INIT><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>74</LINE></INIT>
   <IncSpeed><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>160</LINE></IncSpeed>
-  <DecSpeed><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>194</LINE></DecSpeed>
-  <MaxSpeed><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>227</LINE></MaxSpeed>
-  <Stop><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>255</LINE></Stop>
+  <DecSpeed><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>195</LINE></DecSpeed>
+  <MaxSpeed><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>229</LINE></MaxSpeed>
+  <Stop><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>259</LINE></Stop>
   <MAIN><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>138</LINE></MAIN>
-  <Wait><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>288</LINE></Wait>
-  <SkipInc><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>184</LINE></SkipInc>
-  <SkipDec><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>216</LINE></SkipDec>
-  <Loop><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>293</LINE></Loop>
-  <OLoop><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>294</LINE></OLoop>
-  <ILoop><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>295</LINE></ILoop>
+  <Wait><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>293</LINE></Wait>
+  <SkipInc><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>185</LINE></SkipInc>
+  <SkipDec><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>218</LINE></SkipDec>
+  <Loop><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>298</LINE></Loop>
+  <OLoop><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>299</LINE></OLoop>
+  <ILoop><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm</FILE><LINE>300</LINE></ILoop>
  </LABELS>
 </ASSEMBLER_INFO>

@@ -1,5 +1,5 @@
 
-AVRASM ver. 2.2.6  C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm Tue Feb 28 19:14:36 2017
+AVRASM ver. 2.2.6  C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm Thu Mar 02 10:37:48 2017
 
 
 EQU  SIGNATURE_000 0000001e
@@ -883,13 +883,13 @@ EQU  movFwd       00000060
 EQU  toggleSpeed  00000011
 CSEG INIT         00000046
 CSEG IncSpeed     00000062
-CSEG DecSpeed     0000006e
-CSEG MaxSpeed     0000007a
-CSEG Stop         00000084
+CSEG DecSpeed     0000006f
+CSEG MaxSpeed     0000007c
+CSEG Stop         00000087
 CSEG MAIN         00000061
-CSEG Wait         0000008e
-CSEG SkipInc      0000006b
-CSEG SkipDec      00000077
-CSEG Loop         00000091
-CSEG OLoop        00000092
-CSEG ILoop        00000093
+CSEG Wait         00000092
+CSEG SkipInc      0000006c
+CSEG SkipDec      00000079
+CSEG Loop         00000095
+CSEG OLoop        00000096
+CSEG ILoop        00000097

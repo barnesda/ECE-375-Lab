@@ -123,7 +123,7 @@ INIT:
 
 		; Set initial speed, display on Port B pins 3:0
 		; Initialize LED's and motors to be off initially
-		ldi LEDDisplay, 0b00000000
+		ldi LEDDisplay, 0b01100000
 		out PORTB, LEDDisplay
 
 		; Initialize the LCD Display
@@ -175,6 +175,7 @@ IncSpeed:
 		; Else, increment the speed and write to OCR0
 		add mpr, r17
 		out OCR0, mpr
+		out OCR2, mpr
 
 		; Write speed value to led's
 		inc LEDDisplay
@@ -207,6 +208,7 @@ DecSpeed:
 		; Else, decrement the speed and write to OCR0
 		sub mpr, r17
 		out OCR0, mpr
+		out OCR2, mpr
 
 		; Write speed value to led's
 		dec LEDDisplay
@@ -237,12 +239,14 @@ MaxSpeed:
 		in mpr, OCR0
 		ldi mpr, 255
 		out OCR0, mpr
+		out OCR2, mpr
+		
 
 		; Restore any saved variables by popping from stack
 
 		; Indicate speed on LED's
-		 ldi mpr, 0b00001111
-		 out PORTB, mpr
+		 ldi ledDisplay, 0b01101111
+		 out PORTB, ledDisplay
 
 		ldi mpr, resetFlag
 		out EIFR, mpr
@@ -265,13 +269,14 @@ Stop:
 		in mpr, OCR0
 		ldi mpr, 0
 		out OCR0, mpr
+		out OCR2, mpr
 
 		; Restore any saved variables by popping from stack
 
 
 		; Indicate stop speed on LED's
-		ldi mpr, 0b00000000
-		out PORTB, mpr
+		 ldi ledDisplay, 0b01100000
+		 out PORTB, ledDisplay
 
 		ldi mpr, resetFlag
 		out EIFR, mpr

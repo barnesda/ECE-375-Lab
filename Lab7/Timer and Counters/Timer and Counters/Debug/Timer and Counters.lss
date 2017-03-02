@@ -1,5 +1,5 @@
 
-AVRASM ver. 2.2.6  C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm Tue Feb 28 19:14:36 2017
+AVRASM ver. 2.2.6  C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm Thu Mar 02 10:37:48 2017
 
 [builtin](2): Including file 'C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.1.130\avrasm\inc\m128def.inc'
 C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Counters\main.asm(18): Including file 'C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.1.130\avrasm\inc\m128def.inc'
@@ -1324,15 +1324,15 @@ C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Coun
 000003 9518                      		reti					; Return from increase speed function
                                  
                                  .org	$0004					; Decrease speed requested
-000004 d069                      		rcall DecSpeed			; Call decrease speed function
+000004 d06a                      		rcall DecSpeed			; Call decrease speed function
 000005 9518                      		reti					; Return from decrease speed function
                                  
                                  .org	$0006					; Max Speed Requested
-000006 d073                      		rcall MaxSpeed			; Call max speed function
+000006 d075                      		rcall MaxSpeed			; Call max speed function
 000007 9518                      		reti					; Return from max speed function
                                  
                                  .org	$0008					; Stop Requested
-000008 d07b                      		rcall Stop				; Call stop function
+000008 d07e                      		rcall Stop				; Call stop function
 000009 9518                      		reti
                                  
                                  .org	$0046					; end of interrupt vectors
@@ -1392,7 +1392,7 @@ C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Coun
                                  
                                  		; Set initial speed, display on Port B pins 3:0
                                  		; Initialize LED's and motors to be off initially
-00005e e080                      		ldi LEDDisplay, 0b00000000
+00005e e680                      		ldi LEDDisplay, 0b01100000
 00005f bb88                      		out PORTB, LEDDisplay
                                  
                                  		; Initialize the LCD Display
@@ -1433,28 +1433,29 @@ C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Coun
                                  		
                                  		; Wait for 50 ms to account for button bounce
 000062 e104                      		ldi mpr, WTime
-000063 d02a                      		rcall Wait
+000063 d02e                      		rcall Wait
                                  
                                  
                                  		; Check if we are already at max speed
 000064 b701                      		in mpr, OCR0
 000065 3f0f                      		cpi mpr, 255
-000066 f021                      		breq SkipInc
+000066 f029                      		breq SkipInc
                                  
                                  		; Else, increment the speed and write to OCR0
 000067 0f01                      		add mpr, r17
 000068 bf01                      		out OCR0, mpr
+000069 bd03                      		out OCR2, mpr
                                  
                                  		; Write speed value to led's
-000069 9583                      		inc LEDDisplay
-00006a bb88                      		out PORTB, LEDDisplay
+00006a 9583                      		inc LEDDisplay
+00006b bb88                      		out PORTB, LEDDisplay
                                  
                                  
                                  SkipInc: ; Value is already at max speed
                                  		; Restore any saved variables by popping from stack
-00006b e00f                      		ldi mpr, resetFlag
-00006c bf08                      		out EIFR, mpr
-00006d 9508                      		ret						; End a function with RET
+00006c e00f                      		ldi mpr, resetFlag
+00006d bf08                      		out EIFR, mpr
+00006e 9508                      		ret						; End a function with RET
                                  
                                  ;-----------------------------------------------------------
                                  ; Func:	DecSpeed
@@ -1465,29 +1466,30 @@ C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Coun
                                  		; If needed, save variables by pushing to the stack
                                  
                                  		; Wait for 30 ms
-00006e e104                      		ldi mpr, WTime
-00006f d01e                      		rcall Wait
+00006f e104                      		ldi mpr, WTime
+000070 d021                      		rcall Wait
                                  
                                  		; Check if we are already at min speed
-000070 b701                      		in mpr, OCR0
-000071 3000                      		cpi mpr, 0
-000072 f021                      		breq SkipDec
+000071 b701                      		in mpr, OCR0
+000072 3000                      		cpi mpr, 0
+000073 f029                      		breq SkipDec
                                  
                                  		; Else, decrement the speed and write to OCR0
-000073 1b01                      		sub mpr, r17
-000074 bf01                      		out OCR0, mpr
+000074 1b01                      		sub mpr, r17
+000075 bf01                      		out OCR0, mpr
+000076 bd03                      		out OCR2, mpr
                                  
                                  		; Write speed value to led's
-000075 958a                      		dec LEDDisplay
-000076 bb88                      		out PORTB, LEDDisplay
+000077 958a                      		dec LEDDisplay
+000078 bb88                      		out PORTB, LEDDisplay
                                  
                                  
                                  SkipDec: ; Already at min speed
                                  
                                  		; Restore any saved variables by popping from stack
-000077 e00f                      		ldi mpr, resetFlag
-000078 bf08                      		out EIFR, mpr
-000079 9508                      		ret						; End a function with RET
+000079 e00f                      		ldi mpr, resetFlag
+00007a bf08                      		out EIFR, mpr
+00007b 9508                      		ret						; End a function with RET
                                  
                                  ;-----------------------------------------------------------
                                  ; Func:	MaxSpeed
@@ -1500,22 +1502,24 @@ C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Coun
                                  		; Execute the function here
                                  		
                                  		; Wait for 30 ms to account for button bounce
-00007a e104                      		ldi mpr, WTime
-00007b d012                      		rcall Wait
+00007c e104                      		ldi mpr, WTime
+00007d d014                      		rcall Wait
                                  
-00007c b701                      		in mpr, OCR0
-00007d ef0f                      		ldi mpr, 255
-00007e bf01                      		out OCR0, mpr
+00007e b701                      		in mpr, OCR0
+00007f ef0f                      		ldi mpr, 255
+000080 bf01                      		out OCR0, mpr
+000081 bd03                      		out OCR2, mpr
+                                 		
                                  
                                  		; Restore any saved variables by popping from stack
                                  
                                  		; Indicate speed on LED's
-00007f e00f                      		 ldi mpr, 0b00001111
-000080 bb08                      		 out PORTB, mpr
+000082 e68f                      		 ldi ledDisplay, 0b01101111
+000083 bb88                      		 out PORTB, ledDisplay
                                  
-000081 e00f                      		ldi mpr, resetFlag
-000082 bf08                      		out EIFR, mpr
-000083 9508                      		ret						; End a function with RET
+000084 e00f                      		ldi mpr, resetFlag
+000085 bf08                      		out EIFR, mpr
+000086 9508                      		ret						; End a function with RET
                                  
                                  ;-----------------------------------------------------------
                                  ; Func:	Stop
@@ -1526,25 +1530,26 @@ C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Coun
                                  		; If needed, save variables by pushing to the stack
                                  		
                                  		; Wait for 30 ms to account for button bounce
-000084 e104                      		ldi mpr, WTime
-000085 d008                      		rcall Wait
+000087 e104                      		ldi mpr, WTime
+000088 d009                      		rcall Wait
                                  
                                  
                                  		; Execute the function here
-000086 b701                      		in mpr, OCR0
-000087 e000                      		ldi mpr, 0
-000088 bf01                      		out OCR0, mpr
+000089 b701                      		in mpr, OCR0
+00008a e000                      		ldi mpr, 0
+00008b bf01                      		out OCR0, mpr
+00008c bd03                      		out OCR2, mpr
                                  
                                  		; Restore any saved variables by popping from stack
                                  
                                  
                                  		; Indicate stop speed on LED's
-000089 e000                      		ldi mpr, 0b00000000
-00008a bb08                      		out PORTB, mpr
+00008d e680                      		 ldi ledDisplay, 0b01100000
+00008e bb88                      		 out PORTB, ledDisplay
                                  
-00008b e00f                      		ldi mpr, resetFlag
-00008c bf08                      		out EIFR, mpr
-00008d 9508                      		ret						; End a function with RET
+00008f e00f                      		ldi mpr, resetFlag
+000090 bf08                      		out EIFR, mpr
+000091 9508                      		ret						; End a function with RET
                                  
                                  ;----------------------------------------------------------------
                                  ; Sub:	Wait
@@ -1555,23 +1560,23 @@ C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab7\Timer and Counters\Timer and Coun
                                  ;			((3 * ilcnt + 3) * olcnt + 3) * waitcnt + 13 + call
                                  ;----------------------------------------------------------------
                                  Wait:
-00008e 930f                      		push	mpr			; Save wait register
-00008f 939f                      		push	ilcnt			; Save ilcnt register
-000090 937f                      		push	olcnt			; Save olcnt register
+000092 930f                      		push	mpr			; Save wait register
+000093 939f                      		push	ilcnt			; Save ilcnt register
+000094 937f                      		push	olcnt			; Save olcnt register
                                  
-000091 ee70                      Loop:	ldi		olcnt, 224		; load olcnt register
-000092 ee9d                      OLoop:	ldi		ilcnt, 237		; load ilcnt register
-000093 959a                      ILoop:	dec		ilcnt			; decrement ilcnt
-000094 f7f1                      		brne	ILoop			; Continue Inner Loop
-000095 957a                      		dec		olcnt		; decrement olcnt
-000096 f7d9                      		brne	OLoop			; Continue Outer Loop
-000097 950a                      		dec		mpr		; Decrement wait
-000098 f7c1                      		brne	Loop			; Continue Wait loop
+000095 ee70                      Loop:	ldi		olcnt, 224		; load olcnt register
+000096 ee9d                      OLoop:	ldi		ilcnt, 237		; load ilcnt register
+000097 959a                      ILoop:	dec		ilcnt			; decrement ilcnt
+000098 f7f1                      		brne	ILoop			; Continue Inner Loop
+000099 957a                      		dec		olcnt		; decrement olcnt
+00009a f7d9                      		brne	OLoop			; Continue Outer Loop
+00009b 950a                      		dec		mpr		; Decrement wait
+00009c f7c1                      		brne	Loop			; Continue Wait loop
                                  
-000099 917f                      		pop		olcnt		; Restore olcnt register
-00009a 919f                      		pop		ilcnt		; Restore ilcnt register
-00009b 910f                      		pop		mpr			; Restore wait register
-00009c 9508                      		ret					; Return from subroutine
+00009d 917f                      		pop		olcnt		; Restore olcnt register
+00009e 919f                      		pop		ilcnt		; Restore ilcnt register
+00009f 910f                      		pop		mpr			; Restore wait register
+0000a0 9508                      		ret					; Return from subroutine
                                  
                                  
                                  
@@ -1605,7 +1610,7 @@ counted separately from r26..r31 here.
 x  :   0 y  :   0 z  :   0 r0 :   0 r1 :   0 r2 :   0 r3 :   0 r4 :   0 
 r5 :   0 r6 :   0 r7 :   0 r8 :   0 r9 :   0 r10:   0 r11:   0 r12:   0 
 r13:   0 r14:   0 r15:   0 r16:  55 r17:   3 r18:   0 r19:   0 r20:   0 
-r21:   0 r22:   0 r23:   4 r24:   6 r25:   4 r26:   0 r27:   0 r28:   0 
+r21:   0 r22:   0 r23:   4 r24:  10 r25:   4 r26:   0 r27:   0 r28:   0 
 r29:   0 r30:   0 r31:   0 
 Registers used: 5 out of 35 (14.3%)
 
@@ -1622,7 +1627,7 @@ cpi   :   2 cpse  :   0 dec   :   4 elpm  :   0 eor   :   0 fmul  :   0
 fmuls :   0 fmulsu:   0 icall :   0 ijmp  :   0 in    :   4 inc   :   1 
 jmp   :   0 ld    :   0 ldd   :   0 ldi   :  27 lds   :   0 lpm   :   0 
 lsl   :   0 lsr   :   0 mov   :   0 movw  :   0 mul   :   0 muls  :   0 
-mulsu :   0 neg   :   0 nop   :   0 or    :   0 ori   :   0 out   :  23 
+mulsu :   0 neg   :   0 nop   :   0 or    :   0 ori   :   0 out   :  27 
 pop   :   3 push  :   3 rcall :   8 ret   :   5 reti  :   4 rjmp  :   2 
 rol   :   0 ror   :   0 sbc   :   0 sbci  :   0 sbi   :   0 sbic  :   0 
 sbis  :   0 sbiw  :   0 sbr   :   0 sbrc  :   0 sbrs  :   0 sec   :   0 
@@ -1635,7 +1640,7 @@ Instructions used: 18 out of 114 (15.8%)
 "ATmega128" memory use summary [bytes]:
 Segment   Begin    End      Code   Data   Used    Size   Use%
 ---------------------------------------------------------------
-[.cseg] 0x000000 0x00013a    192      0    192  131072   0.1%
+[.cseg] 0x000000 0x000142    200      0    200  131072   0.2%
 [.dseg] 0x000100 0x000100      0      0      0    4096   0.0%
 [.eseg] 0x000000 0x000000      0      0      0    4096   0.0%
 
