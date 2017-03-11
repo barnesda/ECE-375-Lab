@@ -19,6 +19,7 @@
 ;*	Internal Register Definitions and Constants
 ;***********************************************************
 .def	mpr = r16				; Multi-Purpose Register
+.def	cmdr = r17				; Action code buffer register
 
 .equ	EngEnR = 4				; Right Engine Enable Bit
 .equ	EngEnL = 7				; Left Engine Enable Bit
@@ -32,8 +33,9 @@
 .equ	TurnR =   ($80|1<<(EngDirL-1))					;0b10100000 Turn Right Action Code
 .equ	TurnL =   ($80|1<<(EngDirR-1))					;0b10010000 Turn Left Action Code
 .equ	Halt =    ($80|1<<(EngEnR-1)|1<<(EngEnL-1))		;0b11001000 Halt Action Code
+.equ	Freeze =  0b11111000					; Freeze Action Code
 
-.equ	BotAddy = b01110011	;Robot Addres Code
+.equ	BotAddy = 0b01110011	;Robot Addres Code
 
 ;***********************************************************
 ;*	Start of Code Segment
@@ -82,20 +84,26 @@ INIT:
 MAIN:
 	in	mpr, PIND
 
-	clr	r17
+	clr	cmdr
 	
+	; Check for inputs and load respective commands
 	SBRS	mpr, 0
-	ldi	r17, TurnR
+	ldi	cmdr, TurnR
 	SBRS	mpr, 1
-	ldi	r17, MovBck
+	ldi	cmdr, MovBck
 	SBRS	mpr, 2
-	ldi	r17, MovFwd
+	ldi	cmdr, MovFwd
 	SBRS	mpr, 3
-	ldi	r17, TurnL
+	ldi	cmdr, TurnL
 	SBRS	mpr, 4
-	ldi	r17, Halt
+	ldi	cmdr, Halt
+	SBRS	mpr, 5
+	ldi	cmdr, Freeze
 
-	;TODO: add call to transmit if r17 nonempty
+	;If command to send, send it
+	cpi	cmdr, 0
+	breq	MAIN
+	rcall	USART_Transmit
 
 	rjmp	MAIN
 
@@ -111,7 +119,7 @@ USART_Transmit:
 USART_Transmit_Stage2:
 	sbis	UCSR0A, UDRE0	; Loop until UDR0 is empty
 	rjmp	USART_Transmit_Stage2
-	out	UDR0, r17	; Move action code to Transmit Data Buffer
+	out	UDR0, cmdr	; Move action code to Transmit Data Buffer
 	ret
 
 ;***********************************************************
