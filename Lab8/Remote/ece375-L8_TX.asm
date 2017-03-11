@@ -60,6 +60,8 @@ INIT:
 	ldi 	mpr, low(RAMEND) 
 	out 	SPL, mpr 
 	;I/O Ports
+	ldi	mpr, (1<<PE1)	; Set Port E pin 0 (RXD0) for input
+	out	DDRE, mpr	; and Port E pin 1 (TXD0) for output
 	ldi 	mpr, 0b00000000
 	out	DDRD, mpr
 	ldi 	mpr, 0b00011111
