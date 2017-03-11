@@ -1,0 +1,115 @@
+gavrasm Gerd's AVR assembler version 3.6 (C)2017 by DG4FAC
+----------------------------------------------------------
+Source file: ece375-L8_TX.asm
+Hex file:    ece375-L8_TX.hex
+Eeprom file: ece375-L8_TX.eep
+Compiled:    09.03.2017, 11:16:36
+Pass:        2
+     1: ;***********************************************************
+     2: ;*
+     3: ;*	Enter Name of file here
+     4: ;*
+     5: ;*	Enter the description of the program here
+     6: ;*
+     7: ;*	This is the TRANSMIT skeleton file for Lab 8 of ECE 375
+     8: ;*
+     9: ;***********************************************************
+    10: ;*
+    11: ;*	 Author: Danny Barnes
+    12: ;*	   Date: 	
+    13: ;*
+    14: ;***********************************************************
+    15: 
+    16: .include "m128def.inc"			; Include definition file
+ -> Warning 009: Include defs not necessary, using internal values!
+   File: ece375-L8_TX.asm, Line: 16
+   Source line: .include "m128def.inc"			; Include definition file
+    17: 
+    18: ;***********************************************************
+    19: ;*	Internal Register Definitions and Constants
+    20: ;***********************************************************
+    21: .def	mpr = r16				; Multi-Purpose Register
+    22: 
+    23: .equ	EngEnR = 4				; Right Engine Enable Bit
+    24: .equ	EngEnL = 7				; Left Engine Enable Bit
+    25: .equ	EngDirR = 5				; Right Engine Direction Bit
+    26: .equ	EngDirL = 6				; Left Engine Direction Bit
+    27: ; Use these action codes between the remote and robot
+    28: ; MSB = 1 thus:
+    29: ; control signals are shifted right by one and ORed with 0b10000000 = $80
+    30: .equ	MovFwd =  ($80|1<<(EngDirR-1)|1<<(EngDirL-1))	;0b10110000 Move Forward Action Code
+    31: .equ	MovBck =  ($80|$00)								;0b10000000 Move Backward Action Code
+    32: .equ	TurnR =   ($80|1<<(EngDirL-1))					;0b10100000 Turn Right Action Code
+    33: .equ	TurnL =   ($80|1<<(EngDirR-1))					;0b10010000 Turn Left Action Code
+    34: .equ	Halt =    ($80|1<<(EngEnR-1)|1<<(EngEnL-1))		;0b11001000 Halt Action Code
+    35: 
+    36: ;***********************************************************
+    37: ;*	Start of Code Segment
+    38: ;***********************************************************
+    39: .cseg							; Beginning of code segment
+    40: 
+    41: ;***********************************************************
+    42: ;*	Interrupt Vectors
+    43: ;***********************************************************
+    44: .org	$0000					; Beginning of IVs
+    45: 000000   C045  rjmp 	INIT			; Reset interrupt
+    46: 
+    47: .org	$0046					; End of Interrupt Vectors
+    48: 
+    49: ;***********************************************************
+    50: ;*	Program Initialization
+    51: ;***********************************************************
+    52: INIT:
+    53: 	;Stack Pointer (VERY IMPORTANT!!!!)
+    54: 000046   E100  ldi 	mpr, high(RAMEND) 
+    55: 000047   BF0E  out 	SPH, mpr 
+    56: 000048   EF0F  ldi 	mpr, low(RAMEND) 
+    57: 000049   BF0D  out 	SPL, mpr 
+    58: 	;I/O Ports
+    59: 00004A   E000  ldi 	mpr, 0b00000000
+    60: 00004B   BB01  out	DDRD, mpr
+    61: 00004C   E10F  ldi 	mpr, 0b00011111
+    62: 00004D   BB02  out	PORTD, mpr
+    63: 	;USART1
+    64: 		;Set baudrate at 2400bps
+    65: 00004E   E001  ldi 	mpr, high($01A0)
+    66: 00004F   9300  sts	UBRR0H, mpr
+        000050   0090
+    67: 000051   E001  ldi	mpr, high($01A0)
+    68: 000052   B909  out	UBRR0L, mpr
+    69: 		;Enable transmitter
+    70: 000053   E008  ldi	mpr, (1<<TXEN0)
+    71: 000054   B90A  out	UCSR0B, mpr
+    72: 		;Set frame format: 8 data bits, 2 stop bits
+    73: 000055   E00E  ldi	mpr, (0<<UMSEL0 | 1<<USBS0 | 1<<UCSZ01 | 1<<UCSZ00)
+    74: 000056   9300  sts	UCSR0C, mpr
+        000057   0095
+    75: 	;Other
+    76: 
+    77: ;***********************************************************
+    78: ;*	Main Program
+    79: ;***********************************************************
+    80: MAIN:
+    81: 	;TODO: ???1
+    82: 000058   CFFF  rjmp	MAIN
+    83: 
+    84: ;***********************************************************
+    85: ;*	Functions and Subroutines
+    86: ;***********************************************************
+    87: 
+    88: ;***********************************************************
+    89: ;*	Stored Program Data
+    90: ;***********************************************************
+    91: 
+    92: ;***********************************************************
+    93: ;*	Additional Program Includes
+    94: ;***********************************************************
+ -> Warning 001: 5 symbol(s) defined, but not used!
+
+Program             :       20 words.
+Constants           :        0 words.
+Total program memory:       20 words.
+Eeprom space        :        0 bytes.
+Data segment        :        0 bytes.
+Compilation completed, no errors.
+Compilation endet 09.03.2017, 11:16:36
