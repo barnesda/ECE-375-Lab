@@ -1,0 +1,38 @@
+<ASSEMBLER_INFO>
+ <VERSION>2.2.6</VERSION>
+ <DEVICE>"ATmega128"</DEVICE>
+ <WORKING_DIR>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab8\Robot\Robot\Robot\Debug</WORKING_DIR>
+ <INCLUDE_PATH>
+  <DIR>C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.1.130\avrasm\inc</DIR>
+  <DIR>C:\Program Files (x86)\Atmel\Studio\7.0\toolchain\avr8\avrassembler\Include</DIR>
+  <DIR></DIR>
+ </INCLUDE_PATH>
+ <SOURCE_FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab8\Robot\Robot\Robot\main.asm</SOURCE_FILE>
+ <INCLUDED_FILES>
+  <FILE>C:/Program Files (x86)\Atmel\Studio\7.0\Packs\atmel\ATmega_DFP\1.1.130\avrasm\inc\m128def.inc</FILE>
+ </INCLUDED_FILES>
+ <OBJECT_FILES>
+  <FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab8\Robot\Robot\Robot\Debug\Robot.obj</FILE>
+ </OBJECT_FILES>
+ <HEX_FILES>
+  <FILE>Robot.hex</FILE>
+ </HEX_FILES>
+ <OUTPUT_FILES>
+  <FILE>Robot.map</FILE>
+  <FILE>Robot.lss</FILE>
+ </OUTPUT_FILES>
+ <LABELS>
+  <INIT><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab8\Robot\Robot\Robot\main.asm</FILE><LINE>82</LINE></INIT>
+  <HitRight><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab8\Robot\Robot\Robot\main.asm</FILE><LINE>156</LINE></HitRight>
+  <HitLeft><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab8\Robot\Robot\Robot\main.asm</FILE><LINE>188</LINE></HitLeft>
+  <usartReceive><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab8\Robot\Robot\Robot\main.asm</FILE><LINE>223</LINE></usartReceive>
+  <MAIN><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab8\Robot\Robot\Robot\main.asm</FILE><LINE>149</LINE></MAIN>
+  <Wait><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab8\Robot\Robot\Robot\main.asm</FILE><LINE>273</LINE></Wait>
+  <setExecNextCommand><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab8\Robot\Robot\Robot\main.asm</FILE><LINE>252</LINE></setExecNextCommand>
+  <Frozen><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab8\Robot\Robot\Robot\main.asm</FILE><LINE>247</LINE></Frozen>
+  <skipToEnd><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab8\Robot\Robot\Robot\main.asm</FILE><LINE>258</LINE></skipToEnd>
+  <Loop><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab8\Robot\Robot\Robot\main.asm</FILE><LINE>278</LINE></Loop>
+  <OLoop><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab8\Robot\Robot\Robot\main.asm</FILE><LINE>279</LINE></OLoop>
+  <ILoop><FILE>C:\Users\jeffs\Desktop\Github\ECE-375-Lab\Lab8\Robot\Robot\Robot\main.asm</FILE><LINE>280</LINE></ILoop>
+ </LABELS>
+</ASSEMBLER_INFO>
