@@ -21,7 +21,7 @@
 ;*	Internal Register Definitions and Constants
 ;***********************************************************
 .def	mpr = r16				; Multi-Purpose Register
-.def	mpr2 = r20				; Multi-purpose Register
+.def	freezeCount = r20		; Multi-purpose Register
 .def	waitcnt = r17			; Wait loop counter
 .def	ilcnt = r18				; Inner loop counter
 .def	olcnt = r19				; Outer loop counter
@@ -114,19 +114,19 @@ INIT:
 
 		;Set baudrate at 2400bps
 		ldi 	mpr, high($01A0)
-		sts	UBRR0H, mpr
-		ldi	mpr, high($01A0)
-		out	UBRR0L, mpr
+		sts		UBRR0H, mpr
+		ldi		mpr, high($01A0)
+		out		UBRR0L, mpr
 
 		;Enable receiver and enable receive interrupts
 
 		;Set frame format: 8 data bits, 2 stop bits
-		ldi	mpr, (0<<UMSEL0 | 1<<USBS0 | 1<<UCSZ01 | 1<<UCSZ00)
-		sts	UCSR0C, mpr
+		;ldi	mpr, (0<<UMSEL0 | 1<<USBS0 | 1<<UCSZ01 | 1<<UCSZ00)
+		;sts	UCSR0C, mpr
 
 		; Enable both receiver and transmitter, and receiv interrupt
-		ldi mpr, (1<<RXEN0 | 1<<TXEN0 | RXCIE0)
-		out UCSR0B, mpr
+		;ldi mpr, (1<<RXEN0 | 1<<TXEN0 | RXCIE0)
+		;out UCSR0B, mpr
 
 	;External Interrupts
 		;Set the External Interrupt Mask
@@ -134,10 +134,12 @@ INIT:
 		ldi mpr, (1<<ISC01)|(0<<ISC00)|(1<<ISC11)|(0<<ISC10)|(0<<ISC20)|(1<<ISC21)|(0<<ISC30)|(1<<ISC31)
 		sts EICRA, mpr
 
-		ldi mpr, (1<<INT0)|(1<<INT1)|(1<<INT2)	; PORTD pins 3 - 0
+		ldi mpr, (1<<INT0)|(1<<INT1)
 		out EIMSK, mpr
 
+		; Explicitly stated, freezeCount is 0, the next command is assumed to not be from OUR remote
 		ldi execNextCommandCheck, $00
+		ldi freezeCount, $00
 
 		;Set the Interrupt Sense Control to falling edge detection
 		sei
@@ -223,45 +225,149 @@ HitLeft:
 usartReceive:
 	; Store PINB, PIND, and mpr
 	push mpr
-	in mpr, PINB
-	push mpr
-	in mpr, PIND
-	push mpr
+	; in mpr, PINB
+	; push mpr
+	; in mpr, PIND
+	; push mpr
 
-
+	; Load the byte from the transmitter into mpr
 	lds mpr, UDR1
 
+	; is it the address to our bot?
 	cpi mpr, BotAddress
 	breq setExecNextCommand
 
+	; else, is it the freeze command from another bot?
 	cpi mpr, freeze
 	breq Frozen
 
 	; Now, assumed to be the next command from the remote
 	
+	; Tell another bot to freeze?
+	cpi mpr, 0b11111000
+	breq sendFreezeCommand
+
+	; Move Forward?
+	cpi mpr, 0b10110000
+	breq mvFwdCommand
+
+	; Halt?
+	cpi mpr, 0b11001000
+	breq HaltCommand
+
+	; Turn Left?
+	cpi mpr, 0b10010000
+	breq turnLCommand
+
+	; Turn right?
+	cpi mpr, 0b10100000
+	breq turnRCommand
 
 	; At the end of executing the next command, change execNextCommandCheck to $00 as next command is assumed to not be from the remote
-	
 	ldi execNextCommandCheck, $00
 
 Frozen:
 	; I'm frozen!
+
+	; Check if this is the third time I've been frozen
+	inc freezeCount;
+	cpi freezeCount, 3
+	breq shutdown
+
+	; push PORTD's output to the stack so we can return to the previous action (halt, mvFwd, turn left, turn right)
+	 in mpr, PORTD
+	 push mpr
+
+	; Disable the receiver
+	ldi		mpr, (0<<RXCIE1)|(1<<TXCIE1)|(0<<RXEN1)|(1<<TXEN1)
+	sts		UCSR1B, mpr
+	lds		mpr, UDR1
+	push	mpr		; UDR1 needs to be cleared according to Gurjeet
+	ldi		mpr, $00
+	sts		UDR1, mpr
+
+	; Send Halt command to PORTD
+	ldi mpr, Halt
+	out PORTD, mpr
+
+	; Wait for 2.5 seconds twice
+	ldi waitcnt, 250
+	rcall Wait
+	rcall Wait
+
+	; return UDR1 to its previous state
+	pop		mpr
+	sts		UDR1, mpr
+
+	; return PORTD to its previous state
+	 pop mpr
+	 out PORTD, mpr
+
+	; Enable the receiver
+	ldi		mpr, (1<<RXCIE1)|(1<<TXCIE1)|(1<<RXEN1)|(1<<TXEN1)
+	sts		UCSR1B, mpr
+
 	rjmp skipToEnd
+
+shutdown:
+	; Do nothing!  I've been frozen three times!
+	rjmp shutdown
 
 
 SetExecNextCommand:
 	ldi execNextCommandCheck, $01
 	rjmp skipToEnd
 
+sendFreezeCommand:
+		; Busy wait until the transmitter is empty
+		;sbis UCSR1A, UDRE1
+		;rjmp sendFreezeCommand
 
+		; Disable the receiver
+		ldi		mpr, (0<<RXCIE1)|(1<<TXCIE1)|(0<<RXEN1)|(1<<TXEN1)
+		sts		UCSR1B, mpr
+
+		; Send freeze command
+		ldi mpr, freeze
+		sts UDR1, mpr
+
+		; Enable the receiver
+		ldi		mpr, (1<<RXCIE1)|(1<<TXCIE1)|(1<<RXEN1)|(1<<TXEN1)
+		sts		UCSR1B, mpr
+
+		rjmp skipToEnd
+
+mvFwdCommand:
+	ldi mpr, movFwd
+	out PORTD, mpr
+
+	rjmp skipToEnd
+
+HaltCommand:
+	ldi mpr, Halt
+	out PORTD, mpr
+
+	rjmp skipToEnd
+
+turnLCommand:
+	ldi mpr, TurnL
+	out PORTD, mpr
+
+	rjmp skipToEnd
+
+turnRCommand:
+	ldi mpr, TurnR
+	out PORTD, mpr
+
+	rjmp skipToEnd
 
 skipToEnd:
 	
 	; pop portD, PortB, and mpr off of the stack. 
-	pop mpr
-	out PORTD, mpr
-	pop mpr
-	out PORTB, mpr 
+	;pop mpr
+	;out PORTD, mpr
+	;pop mpr
+	;out PORTB, mpr 
 
 	; Clear interrupts so they don't que up
 	ldi mpr, 0b00000011 ; Write logical one to INT0 and INT1
