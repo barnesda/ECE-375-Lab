@@ -87,8 +87,8 @@ INIT:
 	out		spl, mpr
 
 	;I/O Ports
-	ldi		mpr, 0b00000010	;Pin 0 for input, pin 1 for output
-	out		DDRE, mpr		
+	;ldi		mpr, 0b00000010	;Pin 0 for input, pin 1 for output
+	;out		DDRE, mpr		
 
 	; Initialize Port B for output
 	ldi mpr, (1<<EngEnL)|(1<<EngEnR)|(1<<EngDirR)|(1<<EngDirL)
@@ -114,9 +114,9 @@ INIT:
 
 		;Set baudrate at 2400bps
 		ldi 	mpr, high($01A0)
-		sts		UBRR0H, mpr
+		sts		UBRR1H, mpr
 		ldi		mpr, high($01A0)
-		out		UBRR0L, mpr
+		out		UBRR1L, mpr
 
 		;Enable receiver and enable receive interrupts
 
@@ -274,8 +274,8 @@ Frozen:
 	cpi freezeCount, 3
 	breq shutdown
 
-	; push PORTD's output to the stack so we can return to the previous action (halt, mvFwd, turn left, turn right)
-	 in mpr, PORTD
+	; push PORTB's output to the stack so we can return to the previous action (halt, mvFwd, turn left, turn right)
+	 in mpr, PORTB
 	 push mpr
 
 	; Disable the receiver
@@ -286,9 +286,9 @@ Frozen:
 	ldi		mpr, $00
 	sts		UDR1, mpr
 
-	; Send Halt command to PORTD
+	; Send Halt command to PORTB
 	ldi mpr, Halt
-	out PORTD, mpr
+	out PORTB, mpr
 
 	; Wait for 2.5 seconds twice
 	ldi waitcnt, 250
@@ -299,9 +299,9 @@ Frozen:
 	pop		mpr
 	sts		UDR1, mpr
 
-	; return PORTD to its previous state
+	; return PORTB to its previous state
 	 pop mpr
-	 out PORTD, mpr
+	 out PORTB, mpr
 
 	; Enable the receiver
 	ldi		mpr, (1<<RXCIE1)|(1<<TXCIE1)|(1<<RXEN1)|(1<<TXEN1)
@@ -339,25 +339,25 @@ sendFreezeCommand:
 
 mvFwdCommand:
 	ldi mpr, movFwd
-	out PORTD, mpr
+	out PORTB, mpr
 
 	rjmp skipToEnd
 
 HaltCommand:
 	ldi mpr, Halt
-	out PORTD, mpr
+	out PORTB, mpr
 
 	rjmp skipToEnd
 
 turnLCommand:
 	ldi mpr, TurnL
-	out PORTD, mpr
+	out PORTB, mpr
 
 	rjmp skipToEnd
 
 turnRCommand:
 	ldi mpr, TurnR
-	out PORTD, mpr
+	out PORTB, mpr
 
 	rjmp skipToEnd
 
