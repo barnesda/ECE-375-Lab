@@ -87,8 +87,8 @@ INIT:
 MAIN:
 	in	mpr, PIND
 
-	cp	mpr, lst		;Don't do anything if the buttons haven't changed
-	breq	MAIN			
+	cp	mpr, lst		;Don't do anything 
+	breq	MAIN			;if the buttons haven't changed
 
 	mov	lst, mpr		;Store the new buttons into memory
 	
