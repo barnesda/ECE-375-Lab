@@ -20,6 +20,7 @@
 ;***********************************************************
 .def	mpr = r16				; Multi-Purpose Register
 .def	cmdr = r17				; Action code buffer register
+.def	lst = r20				; Button Press Memory
 
 .equ	EngEnR = 4				; Right Engine Enable Bit
 .equ	EngEnL = 7				; Left Engine Enable Bit
@@ -36,6 +37,7 @@
 .equ	Freeze =  0b11111000					; Freeze Action Code
 
 .equ	BotAddy = 0b01110011	;Robot Addres Code
+;.equ	BotAddy = 0b00000000	;Robot Addres Code
 
 ;***********************************************************
 ;*	Start of Code Segment
@@ -62,7 +64,7 @@ INIT:
 	;I/O Ports
 	ldi 	mpr, 0b00000000
 	out	DDRD, mpr
-	ldi 	mpr, 0b11111111
+	ldi 	mpr, 0b11110011
 	out	PORTD, mpr
 	;USART1
 		;Set baudrate at 2400bps
@@ -77,6 +79,7 @@ INIT:
 		ldi	mpr, (0<<UMSEL1 | 1<<USBS1 | 1<<UCSZ11 | 1<<UCSZ10)
 		sts	UCSR1C, mpr
 	;Other
+	ldi	lst, $FF
 
 ;***********************************************************
 ;*	Main Program
@@ -84,6 +87,11 @@ INIT:
 MAIN:
 	in	mpr, PIND
 
+	cp	mpr, lst		;Don't do anything if the buttons haven't changed
+	breq	MAIN			
+
+	mov	lst, mpr		;Store the new buttons into memory
+	
 	clr	cmdr
 	
 	; Check for inputs and load respective commands
@@ -91,13 +99,13 @@ MAIN:
 	ldi	cmdr, TurnR
 	SBRS	mpr, 1
 	ldi	cmdr, MovBck
-	SBRS	mpr, 2
-	ldi	cmdr, MovFwd
-	SBRS	mpr, 3
-	ldi	cmdr, TurnL
 	SBRS	mpr, 4
-	ldi	cmdr, Halt
+	ldi	cmdr, MovFwd
 	SBRS	mpr, 5
+	ldi	cmdr, TurnL
+	SBRS	mpr, 6
+	ldi	cmdr, Halt
+	SBRS	mpr, 7
 	ldi	cmdr, Freeze
 
 	;If command to send, send it
@@ -117,11 +125,22 @@ USART_Transmit:
 	rjmp	USART_Transmit
 	ldi	mpr, BotAddy
 	sts	UDR1, mpr	; Move robot address to Transmit Data Buffer
+
 USART_Transmit_Stage2:
 	lds	mpr, UCSR1A
 	sbrs	mpr, UDRE1	; Loop until UDR0 is empty
 	rjmp	USART_Transmit_Stage2
 	sts	UDR1, cmdr	; Move action code to Transmit Data Buffer
+
+USART_Transmit_Wait_to_Finish:
+	lds	mpr, UCSR1A
+	sbrs	mpr, TXC1
+	rjmp	USART_Transmit_Wait_to_Finish
+
+	lds	mpr, UCSR1A
+	cbr	mpr, TXC1
+	sts	UCSR1A, mpr
+
 	ret
 
 ;***********************************************************
