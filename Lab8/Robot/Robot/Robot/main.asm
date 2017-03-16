@@ -249,7 +249,6 @@ usartReceive:
 	push mpr
 
 
-
 	; Load the byte from the transmitter into mpr
 	lds mpr, UDR1
 
@@ -265,9 +264,11 @@ usartReceive:
 	cpi mpr, freeze
 	breq Frozen
 
+	; if last bit is cleared, then execute the next command.  If set, then it clears it
+	sbrs execNextCommandCheck, 0
+	rjmp skipToEnd
 	; Now, assumed to be the next command from the remote
 	ldi execNextCommandCheck, $00
-
 	
 	; Tell another bot to freeze?
 	cpi mpr, 0b11111000
