@@ -97,8 +97,8 @@ INIT:
 	out PORTB, mpr				; All outputs low initially
 
 	; Initialize Port D for input
-	;ldi mpr, (0<<WskrL)|(0<<WskrR)
-	ldi mpr, $00				; Port D all inputs
+	ldi mpr, (0<<WskrL)|(0<<WskrR)
+	;ldi mpr, $00				; Port D all inputs
 	out DDRD, mpr				; Input on all of D
 	ldi mpr, (1<<WskrL)|(1<<WskrR)
 	;ldi mpr, $FF				; All high initially
@@ -110,7 +110,8 @@ INIT:
 		;ldi		mpr, 0b00001110; asynchronous, falling edge, 2 stop bits, no parity
 		sts		ucsr1c, mpr
 
-		ldi		mpr, (1<<RXCIE1)|(1<<TXCIE1)|(1<<RXEN1)|(1<<TXEN1)
+		;ldi		mpr, (1<<RXCIE1)|(1<<TXCIE1)|(1<<RXEN1)|(1<<TXEN1)
+		ldi			mpr, (1<<RXCIE1)|(1<<RXEN1)
 		;ldi		mpr, 0b11011000
 		sts		UCSR1B, mpr
 
@@ -166,6 +167,8 @@ HitRight:
 		push	waitcnt			; Save wait register
 		in		mpr, SREG	; Save program state
 		push	mpr			;
+		in mpr, PINB
+		push mpr
 
 		
 
@@ -186,6 +189,8 @@ HitRight:
 		sbr		mpr, (1<<WskrR)|(1<<WskrL)	; Clear possible queued whisker interrupt flags
 		out		EIFR, mpr					; Store modified values to EIFR
 
+		pop		mpr
+		out		PORTB, mpr	; return to the previous command
 		pop		mpr			; Restore program state
 		out		SREG, mpr	;
 		pop		waitcnt		; Restore wait register
@@ -198,6 +203,8 @@ HitLeft:
 		push	waitcnt			; Save wait register
 		in		mpr, SREG	; Save program state
 		push	mpr			;
+		in		mpr, PINB	; Save the output state to the stack
+		push mpr
 
 		; Move Backwards for a second
 		ldi		mpr, MovBck	; Load Move Backward command
@@ -215,6 +222,8 @@ HitLeft:
 		sbr		mpr, (1<<WskrR)|(1<<WskrL)	; Clear possible queued whisker interrupt flags
 		out		EIFR, mpr			; Store modified values to EIFR
 
+		pop		mpr		; restore the command state
+		out PORTB, mpr
 		pop		mpr		; Restore program state
 		out		SREG, mpr	;
 		pop		waitcnt		; Restore wait register
@@ -293,7 +302,7 @@ Frozen:
 	out PORTB, mpr
 
 	; Wait for 2.5 seconds twice
-	ldi waitcnt, 250
+	ldi mpr, 250
 	rcall Wait
 	rcall Wait
 
