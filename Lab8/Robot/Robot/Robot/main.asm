@@ -26,6 +26,7 @@
 .def	ilcnt = r18				; Inner loop counter
 .def	olcnt = r19				; Outer loop counter
 .def	execNextCommandCheck = r21		; Stores a 0 or 1 to execute the next command
+.def	portbSave = r22
 
 .equ	WTime = 100				; Time to wait in wait loop
 
@@ -196,6 +197,9 @@ HitRight:
 		pop		waitcnt		; Restore wait register
 		pop		mpr			; Restore mpr
 
+		; Flush so interrupts aren't queued
+		rcall USART_Flush
+
 		ret
 
 HitLeft:
@@ -229,6 +233,9 @@ HitLeft:
 		pop		waitcnt		; Restore wait register
 		pop		mpr		; Restore mpr
 
+		; Flush so interrupts aren't queued
+		rcall USART_Flush
+
 		ret
 
 
@@ -241,8 +248,14 @@ usartReceive:
 	; Store mpr
 	push mpr
 
+
+
 	; Load the byte from the transmitter into mpr
 	lds mpr, UDR1
+
+	; Disable the receiver
+	;ldi		mpr, (0<<RXCIE1)|(1<<TXCIE1)|(0<<RXEN1)|(1<<TXEN1)
+	;sts		UCSR1B, mpr
 
 	; is it the address to our bot?
 	cpi mpr, BotAddress
@@ -253,6 +266,8 @@ usartReceive:
 	breq Frozen
 
 	; Now, assumed to be the next command from the remote
+	ldi execNextCommandCheck, $00
+
 	
 	; Tell another bot to freeze?
 	cpi mpr, 0b11111000
@@ -292,16 +307,17 @@ Frozen:
 	breq shutdown
 
 	; push PORTB's output to the stack so we can return to the previous action (halt, mvFwd, turn left, turn right)
-	 in mpr, PORTB
+	 in mpr, PINB
 	 push mpr
+	 ;in portbSave, PINB
 
 	; Disable the receiver
-	ldi		mpr, (0<<RXCIE1)|(1<<TXCIE1)|(0<<RXEN1)|(1<<TXEN1)
-	sts		UCSR1B, mpr
-	lds		mpr, UDR1
-	push	mpr		; UDR1 needs to be cleared according to Gurjeet to read the next command
-	ldi		mpr, $00
-	sts		UDR1, mpr
+	;ldi		mpr, (0<<RXCIE1)|(1<<TXCIE1)|(0<<RXEN1)|(1<<TXEN1)
+	;sts		UCSR1B, mpr
+	;lds		mpr, UDR1
+	;push	mpr		; UDR1 needs to be cleared according to Gurjeet to read the next command
+	;ldi		mpr, $00
+	;sts		UDR1, mpr
 
 	; Send Halt command to PORTB
 	ldi mpr, Halt
@@ -313,21 +329,29 @@ Frozen:
 	rcall Wait
 
 	; return UDR1 to its previous state
-	pop		mpr
-	sts		UDR1, mpr
+	;pop		mpr
+	;sts		UDR1, mpr
 
 	; return PORTB to its previous state
 	 pop mpr
 	 out PORTB, mpr
+	 ;out PORTB, portbSave
 
 	; Enable the receiver
-	ldi		mpr, (1<<RXCIE1)|(1<<TXCIE1)|(1<<RXEN1)|(1<<TXEN1)
-	sts		UCSR1B, mpr
+	;ldi		mpr, (1<<RXCIE1)|(1<<TXCIE1)|(1<<RXEN1)|(1<<TXEN1)
+	;sts		UCSR1B, mpr
+	ldi execNextCommandCheck, $00
 
-	rjmp skipToEnd
+	; Interrupts queued unless cleared
+	rcall USART_Flush
+
+
+	jmp skipToEnd
 
 shutdown:
-	; Do nothing!  I've been frozen three times!
+	; Do nothing!  I've been frozen three times!	
+	ldi mpr, Halt
+	out PORTB, mpr
 	rjmp shutdown
 
 
@@ -345,14 +369,22 @@ sendFreezeCommand:
 		ldi mpr, freeze
 		sts UDR1, mpr
 
-;Transmitting:
-;		lds		mpr, UCSR1A
-;		sbrs	mpr, TXC1
-;		rjmp	Transmitting
+		; Wait while transmitting to avoid freezing ourselves
+		Transmitting:
+			lds		mpr, UCSR1A
+			sbrs	mpr, TXC1
+			rjmp	Transmitting
+
+		; Clear transmit flag
+		lds mpr, UCSR1A
+		cbr mpr, TXC1
+		sts UCSR1A, mpr
 
 		; Enable the receiver
 		ldi		mpr, (1<<RXCIE1)|(1<<TXCIE1)|(1<<RXEN1)|(1<<TXEN1)
 		sts		UCSR1B, mpr
+
+		ldi execNextCommandCheck, $00
 
 		rjmp skipToEnd
 
@@ -392,11 +424,25 @@ skipToEnd:
 	ldi mpr, 0b00000011 ; Write logical one to INT0 and INT1
 	out EIFR, mpr
 
+	; Enable the receiver
+	;ldi		mpr, (1<<RXCIE1)|(1<<TXCIE1)|(1<<RXEN1)|(1<<TXEN1)
+	;sts		UCSR1B, mpr
+
 	; Restore the state of the mpr
 	pop mpr
 
 	ret
 
+
+USART_Flush:
+	lds mpr, UCSR1A
+	sbrs mpr, RXC1
+	ret
+	lds mpr, UDR1
+	rjmp USART_Flush
+
+
+	
 ;----------------------------------------------------------------
 ; Sub:	Wait
 ; Desc:	waits for a specified amount of time
