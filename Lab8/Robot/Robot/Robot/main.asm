@@ -97,9 +97,11 @@ INIT:
 	out PORTB, mpr				; All outputs low initially
 
 	; Initialize Port D for input
-	ldi mpr, (0<<WskrL)|(0<<WskrR)
-	out DDRD, mpr				; Input on D
+	;ldi mpr, (0<<WskrL)|(0<<WskrR)
+	ldi mpr, $00				; Port D all inputs
+	out DDRD, mpr				; Input on all of D
 	ldi mpr, (1<<WskrL)|(1<<WskrR)
+	;ldi mpr, $FF				; All high initially
 	out PORTD, mpr				; Using Pull-up resistors
 
 
@@ -113,10 +115,10 @@ INIT:
 		sts		UCSR1B, mpr
 
 		;Set baudrate at 2400bps
-		ldi 	mpr, high($01A0)
+		ldi 	mpr, $01
 		sts		UBRR1H, mpr
-		ldi		mpr, high($01A0)
-		out		UBRR1L, mpr
+		ldi		mpr, $A0
+		sts		UBRR1L, mpr
 
 		;Enable receiver and enable receive interrupts
 
@@ -142,6 +144,10 @@ INIT:
 		ldi freezeCount, $00
 
 		;Set the Interrupt Sense Control to falling edge detection
+
+		; Send move fwd command initially
+		ldi mpr, MovFwd
+		out PORTB, mpr
 		sei
 	;Other
 
@@ -167,13 +173,13 @@ HitRight:
 		; Move Backwards for a second
 		ldi		mpr, MovBck	; Load Move Backward command
 		out		PORTB, mpr	; Send command to port
-		ldi		waitcnt, WTime	; Wait for 1 second
+		ldi		mpr, WTime	; Wait for 1 second
 		rcall	Wait			; Call wait function
 
 		; Turn left for a second
 		ldi		mpr, TurnL	; Load Turn Left Command
 		out		PORTB, mpr	; Send command to port
-		ldi		waitcnt, WTime	; Wait for 1 second
+		ldi		mpr, WTime	; Wait for 1 second
 		rcall	Wait			; Call wait function
 
 		in		mpr, EIFR					; Load EIFR
@@ -196,13 +202,13 @@ HitLeft:
 		; Move Backwards for a second
 		ldi		mpr, MovBck	; Load Move Backward command
 		out		PORTB, mpr	; Send command to port
-		ldi		waitcnt, WTime	; Wait for 1 second
+		ldi		mpr, WTime	; Wait for 1 second
 		rcall	Wait			; Call wait function
 
 		; Turn right for a second
 		ldi		mpr, TurnR	; Load Turn Left Command
 		out		PORTB, mpr	; Send command to port
-		ldi		waitcnt, WTime	; Wait for 1 second
+		ldi		mpr, WTime	; Wait for 1 second
 		rcall	Wait			; Call wait function
 	
 		in		mpr, EIFR			; Load EIFR
@@ -223,12 +229,8 @@ HitLeft:
 ; Desc:	Handles actions when a uart signal has been received
 ;----------------------------------------------------------------
 usartReceive:
-	; Store PINB, PIND, and mpr
+	; Store mpr
 	push mpr
-	; in mpr, PINB
-	; push mpr
-	; in mpr, PIND
-	; push mpr
 
 	; Load the byte from the transmitter into mpr
 	lds mpr, UDR1
@@ -282,7 +284,7 @@ Frozen:
 	ldi		mpr, (0<<RXCIE1)|(1<<TXCIE1)|(0<<RXEN1)|(1<<TXEN1)
 	sts		UCSR1B, mpr
 	lds		mpr, UDR1
-	push	mpr		; UDR1 needs to be cleared according to Gurjeet
+	push	mpr		; UDR1 needs to be cleared according to Gurjeet to read the next command
 	ldi		mpr, $00
 	sts		UDR1, mpr
 
@@ -319,9 +321,6 @@ SetExecNextCommand:
 	rjmp skipToEnd
 
 sendFreezeCommand:
-		; Busy wait until the transmitter is empty
-		;sbis UCSR1A, UDRE1
-		;rjmp sendFreezeCommand
 
 		; Disable the receiver
 		ldi		mpr, (0<<RXCIE1)|(1<<TXCIE1)|(0<<RXEN1)|(1<<TXEN1)
@@ -363,12 +362,6 @@ turnRCommand:
 
 skipToEnd:
 	
-	; pop portD, PortB, and mpr off of the stack. 
-	;pop mpr
-	;out PORTD, mpr
-	;pop mpr
-	;out PORTB, mpr 
-
 	; Clear interrupts so they don't que up
 	ldi mpr, 0b00000011 ; Write logical one to INT0 and INT1
 	out EIFR, mpr
@@ -383,7 +376,7 @@ skipToEnd:
 ; Desc:	waits for a specified amount of time
 ;----------------------------------------------------------------
 Wait:
-		push	waitcnt			; Save wait register
+		push	mpr			; Save wait register
 		push	ilcnt			; Save ilcnt register
 		push	olcnt			; Save olcnt register
 
@@ -393,12 +386,13 @@ ILoop:	dec		ilcnt			; decrement ilcnt
 		brne	ILoop			; Continue Inner Loop
 		dec		olcnt		; decrement olcnt
 		brne	OLoop			; Continue Outer Loop
-		dec		waitcnt		; Decrement wait 
-		brne	Loop			; Continue Wait loop	
+		dec		mpr		; Decrement wait
+		brne	Loop			; Continue Wait loop
 
 		pop		olcnt		; Restore olcnt register
 		pop		ilcnt		; Restore ilcnt register
-		pop		waitcnt		; Restore wait register
+		pop		mpr			; Restore wait register
+		ret					; Return from subroutine
 ;***********************************************************
 ;*	Stored Program Data
 ;***********************************************************
