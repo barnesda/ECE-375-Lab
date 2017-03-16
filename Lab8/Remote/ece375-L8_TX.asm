@@ -69,10 +69,10 @@ INIT:
 		ldi 	mpr, high($01A0)
 		sts	UBRR1H, mpr
 		ldi	mpr, low($01A0)
-		out	UBRR1L, mpr
+		sts	UBRR1L, mpr
 		;Enable transmitter
 		ldi	mpr, (1<<TXEN1)
-		out	UCSR1B, mpr
+		sts	UCSR1B, mpr
 		;Set frame format: 8 data bits, 2 stop bits
 		ldi	mpr, (0<<UMSEL1 | 1<<USBS1 | 1<<UCSZ11 | 1<<UCSZ10)
 		sts	UCSR1C, mpr
@@ -112,14 +112,16 @@ MAIN:
 ;***********************************************************
 
 USART_Transmit:
-	sbis	UCSR1A, UDRE1	; Loop until UDR0 is empty
+	lds	mpr, UCSR1A
+	sbrs	mpr, UDRE1	; Loop until UDR0 is empty
 	rjmp	USART_Transmit
 	ldi	mpr, BotAddy
-	out	UDR1, mpr	; Move robot address to Transmit Data Buffer
+	sts	UDR1, mpr	; Move robot address to Transmit Data Buffer
 USART_Transmit_Stage2:
-	sbis	UCSR1A, UDRE1	; Loop until UDR0 is empty
+	lds	mpr, UCSR1A
+	sbrs	mpr, UDRE1	; Loop until UDR0 is empty
 	rjmp	USART_Transmit_Stage2
-	out	UDR1, cmdr	; Move action code to Transmit Data Buffer
+	sts	UDR1, cmdr	; Move action code to Transmit Data Buffer
 	ret
 
 ;***********************************************************
