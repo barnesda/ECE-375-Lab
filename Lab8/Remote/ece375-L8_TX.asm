@@ -60,24 +60,22 @@ INIT:
 	ldi 	mpr, low(RAMEND) 
 	out 	SPL, mpr 
 	;I/O Ports
-	ldi	mpr, (1<<PE1)	; Set Port E pin 0 (RXD0) for input
-	out	DDRE, mpr	; and Port E pin 1 (TXD0) for output
 	ldi 	mpr, 0b00000000
 	out	DDRD, mpr
-	ldi 	mpr, 0b00011111
+	ldi 	mpr, 0b11111111
 	out	PORTD, mpr
 	;USART1
 		;Set baudrate at 2400bps
 		ldi 	mpr, high($01A0)
-		sts	UBRR0H, mpr
-		ldi	mpr, high($01A0)
-		out	UBRR0L, mpr
+		sts	UBRR1H, mpr
+		ldi	mpr, low($01A0)
+		sts	UBRR1L, mpr
 		;Enable transmitter
-		ldi	mpr, (1<<TXEN0)
-		out	UCSR0B, mpr
+		ldi	mpr, (1<<TXEN1)
+		sts	UCSR1B, mpr
 		;Set frame format: 8 data bits, 2 stop bits
-		ldi	mpr, (0<<UMSEL0 | 1<<USBS0 | 1<<UCSZ01 | 1<<UCSZ00)
-		sts	UCSR0C, mpr
+		ldi	mpr, (0<<UMSEL1 | 1<<USBS1 | 1<<UCSZ11 | 1<<UCSZ10)
+		sts	UCSR1C, mpr
 	;Other
 
 ;***********************************************************
@@ -114,14 +112,16 @@ MAIN:
 ;***********************************************************
 
 USART_Transmit:
-	sbis	UCSR0A, UDRE0	; Loop until UDR0 is empty
+	lds	mpr, UCSR1A
+	sbrs	mpr, UDRE1	; Loop until UDR0 is empty
 	rjmp	USART_Transmit
 	ldi	mpr, BotAddy
-	out	UDR0, mpr	; Move robot address to Transmit Data Buffer
+	sts	UDR1, mpr	; Move robot address to Transmit Data Buffer
 USART_Transmit_Stage2:
-	sbis	UCSR0A, UDRE0	; Loop until UDR0 is empty
+	lds	mpr, UCSR1A
+	sbrs	mpr, UDRE1	; Loop until UDR0 is empty
 	rjmp	USART_Transmit_Stage2
-	out	UDR0, cmdr	; Move action code to Transmit Data Buffer
+	sts	UDR1, cmdr	; Move action code to Transmit Data Buffer
 	ret
 
 ;***********************************************************
