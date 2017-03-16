@@ -262,6 +262,10 @@ usartReceive:
 	cpi mpr, 0b10110000
 	breq mvFwdCommand
 
+	; Move Backward?
+	cpi mpr, 0b10000000
+	breq mvBckwdCommand
+
 	; Halt?
 	cpi mpr, 0b11001000
 	breq HaltCommand
@@ -276,6 +280,8 @@ usartReceive:
 
 	; At the end of executing the next command, change execNextCommandCheck to $00 as next command is assumed to not be from the remote
 	ldi execNextCommandCheck, $00
+
+	rjmp skipToEnd
 
 Frozen:
 	; I'm frozen!
@@ -339,6 +345,11 @@ sendFreezeCommand:
 		ldi mpr, freeze
 		sts UDR1, mpr
 
+;Transmitting:
+;		lds		mpr, UCSR1A
+;		sbrs	mpr, TXC1
+;		rjmp	Transmitting
+
 		; Enable the receiver
 		ldi		mpr, (1<<RXCIE1)|(1<<TXCIE1)|(1<<RXEN1)|(1<<TXEN1)
 		sts		UCSR1B, mpr
@@ -347,6 +358,12 @@ sendFreezeCommand:
 
 mvFwdCommand:
 	ldi mpr, movFwd
+	out PORTB, mpr
+
+	rjmp skipToEnd
+
+mvBckwdCommand:
+	ldi mpr, MovBck
 	out PORTB, mpr
 
 	rjmp skipToEnd
