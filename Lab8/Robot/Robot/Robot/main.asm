@@ -1,10 +1,9 @@
 ;***********************************************************
 ;*
-;*	Enter Name of file here
+;*	UART Robot
 ;*
-;*	Enter the description of the program here
+;*	Provides the robot functionality and bumpbot functionality to the tekbot
 ;*
-;*	This is the RECEIVE skeleton file for Lab 8 of ECE 375
 ;*
 ;***********************************************************
 ;*
@@ -39,7 +38,9 @@
 .equ	EngDirL = 6				; Left Engine Direction Bit
 
 .equ	BotAddress = 0b01110011	;(Enter your robot's address here (8 bits))
+;.equ	BotAddress = 0b00111111 ; Other bot address
 .equ	freeze = 0b01010101		; Send freeze command to other robots
+
 
 ;/////////////////////////////////////////////////////////////
 ;These macros are the values to make the TekBot Move.
